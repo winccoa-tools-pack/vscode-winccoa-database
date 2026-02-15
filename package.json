@@ -102,7 +102,7 @@
     "@eslint/js": "^9.39.2",
     "@types/better-sqlite3": "^7.6.13",
     "@types/mocha": "^10.0.10",
-    "@types/node": "^20.11.0",
+    "@types/node": "^25.2.3",
     "@types/vscode": "^1.106.0",
     "@vscode/test-cli": "^0.0.12",
     "@vscode/test-electron": "^2.5.2",
