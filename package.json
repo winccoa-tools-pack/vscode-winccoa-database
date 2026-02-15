@@ -47,7 +47,7 @@
     "RichardJanisch.winccoa-project-admin"
   ],
   "dependencies": {
-    "@winccoa-tools-pack/npm-winccoa-core": "^0.1.1"
+    "@winccoa-tools-pack/npm-winccoa-core": "^0.2.3"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.2",
