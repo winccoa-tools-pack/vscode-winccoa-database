@@ -2,7 +2,7 @@ import * as vscode from 'vscode';
 import type { SqliteClient } from '../db/sqliteClient';
 import type { McpClient } from '../api/mcpClient';
 import type { DpeConfigs } from '../models/configs';
-import { getTypeName, isLeafType } from '../models/types';
+import { OaElementType, getTypeName, isLeafType } from '../models/types';
 import { getAlarmState, getAlarmColorName, resolveColor, getBlinkClass, getAlarmStateLabel } from '../models/alarmColors';
 
 export class ConfigEditorPanel {
@@ -174,7 +174,7 @@ export class ConfigEditorPanel {
 
     // Original + Online value panels side-by-side — only for leaf elements
     if (isLeaf) {
-      sections.push(this.renderValuePanels(configs, typeName));
+      sections.push(this.renderValuePanels(configs, typeName, datatype));
     }
 
     // Config sections
@@ -407,7 +407,8 @@ export class ConfigEditorPanel {
       gap: 8px;
       margin-bottom: 8px;
     }
-    .value-edit input {
+    .value-edit input,
+    .value-edit select {
       flex: 1;
       padding: 4px 8px;
       font-size: 1.1em;
@@ -418,7 +419,8 @@ export class ConfigEditorPanel {
       border-radius: 3px;
       outline: none;
     }
-    .value-edit input:focus {
+    .value-edit input:focus,
+    .value-edit select:focus {
       border-color: var(--vscode-focusBorder);
     }
     .value-unit {
@@ -519,11 +521,12 @@ export class ConfigEditorPanel {
   }
 
   /** Render side-by-side Original (editable) and Online (read-only) value panels */
-  private renderValuePanels(configs: DpeConfigs, elementTypeName: string): string {
+  private renderValuePanels(configs: DpeConfigs, elementTypeName: string, datatype?: number): string {
     const lv = configs.lastValue;
     const unit = configs.unitAndFormat?.unit || '';
     const valueStr = lv && lv.value !== null && lv.value !== undefined ? String(lv.value) : '';
     const unitHtml = unit ? `<span class="value-unit">${esc(unit)}</span>` : '';
+    const inputHtml = buildValueInput(valueStr, datatype);
 
     // ── Original (left panel) ──
     let originalBody: string;
@@ -531,7 +534,7 @@ export class ConfigEditorPanel {
       originalBody = `
         <span class="value-none">No value recorded</span>
         <div class="value-edit">
-          <input type="text" id="valueInput" value="" placeholder="Enter value" />
+          ${inputHtml}
           ${unitHtml}
           <button id="setValueBtn">Set</button>
         </div>
@@ -540,7 +543,7 @@ export class ConfigEditorPanel {
       const origTimestamp = formatNanosTimestamp(lv.original_time);
       originalBody = `
         <div class="value-edit">
-          <input type="text" id="valueInput" value="${esc(valueStr)}" placeholder="Enter value" />
+          ${inputHtml}
           ${unitHtml}
           <button id="setValueBtn">Set</button>
         </div>
@@ -788,6 +791,37 @@ export class ConfigEditorPanel {
       const d = this.disposables.pop();
       d?.dispose();
     }
+  }
+}
+
+/** Build an appropriate input control for the given OA data type */
+function buildValueInput(valueStr: string, datatype: number | undefined): string {
+  switch (datatype) {
+    case OaElementType.BOOL:
+    case OaElementType.DYN_BOOL: {
+      const isTrue = valueStr === 'true' || valueStr === '1';
+      const trueSelected = isTrue ? 'selected' : '';
+      const falseSelected = !isTrue ? 'selected' : '';
+      return `<select id="valueInput">
+        <option value="true" ${trueSelected}>true</option>
+        <option value="false" ${falseSelected}>false</option>
+      </select>`;
+    }
+    case OaElementType.INT:
+    case OaElementType.LONG:
+    case OaElementType.DYN_INT:
+      return `<input type="number" step="1" id="valueInput" value="${esc(valueStr)}" />`;
+    case OaElementType.UINT:
+    case OaElementType.ULONG:
+    case OaElementType.CHAR:
+    case OaElementType.DYN_UINT:
+    case OaElementType.DYN_CHAR:
+      return `<input type="number" step="1" min="0" id="valueInput" value="${esc(valueStr)}" />`;
+    case OaElementType.FLOAT:
+    case OaElementType.DYN_FLOAT:
+      return `<input type="number" step="any" id="valueInput" value="${esc(valueStr)}" />`;
+    default:
+      return `<input type="text" id="valueInput" value="${esc(valueStr)}" placeholder="Enter value" />`;
   }
 }
 
