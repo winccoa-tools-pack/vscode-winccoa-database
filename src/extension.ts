@@ -34,6 +34,7 @@ export async function activate(context: vscode.ExtensionContext) {
   dptTreeView = vscode.window.createTreeView('winccoa-database.dptView', {
     treeDataProvider: dptTreeProvider,
     showCollapseAll: true,
+    canSelectMany: true,
   });
   context.subscriptions.push(dptTreeView);
   log.info('Tree views registered');
@@ -64,6 +65,77 @@ export async function activate(context: vscode.ExtensionContext) {
       if (item && item.dpId !== undefined && item.elId !== undefined) {
         openConfigEditor(item.dpId, item.elId, item.label, context.extensionUri);
       }
+    }),
+    vscode.commands.registerCommand('winccoa-database.createDp', async (item) => {
+      log.info(`Command: createDp, dptLabel=${item?.label}`);
+      if (!item?.label) return;
+
+      const typeName = item.label;
+      const dpeName = await vscode.window.showInputBox({
+        prompt: `Enter name for new datapoint of type "${typeName}"`,
+        placeHolder: 'DatapointName',
+        validateInput: (value) => {
+          if (!value || value.trim() === '') return 'Name cannot be empty';
+          if (!/^[a-zA-Z][a-zA-Z0-9_]*$/.test(value)) return 'Name must start with a letter and contain only letters, digits, and underscores';
+          return undefined;
+        },
+      });
+      if (!dpeName) return;
+
+      if (!mcpClient.isConfigured) {
+        vscode.window.showErrorMessage('MCP server not configured. Cannot create datapoint.');
+        return;
+      }
+
+      const result = await mcpClient.dpCreate(dpeName, typeName);
+      if (result.success) {
+        vscode.window.showInformationMessage(`Datapoint "${dpeName}" created.`);
+        dptTreeProvider.refresh();
+      } else {
+        vscode.window.showErrorMessage(`Failed to create datapoint: ${result.error}`);
+      }
+    }),
+    vscode.commands.registerCommand('winccoa-database.deleteDp', async (item, selectedItems?: any[]) => {
+      log.info(`Command: deleteDp, item=${item?.label}, selectedCount=${selectedItems?.length ?? 1}`);
+      if (!item?.label) return;
+
+      const items = selectedItems && selectedItems.length > 0 ? selectedItems : [item];
+      const names = items.map((i: any) => i.label as string).filter(Boolean);
+      if (names.length === 0) return;
+
+      const message = names.length === 1
+        ? `Delete datapoint "${names[0]}"? This cannot be undone.`
+        : `Delete ${names.length} datapoints? This cannot be undone.\n\n${names.join(', ')}`;
+
+      const confirm = await vscode.window.showWarningMessage(
+        message,
+        { modal: true },
+        'Delete',
+      );
+      if (confirm !== 'Delete') return;
+
+      if (!mcpClient.isConfigured) {
+        vscode.window.showErrorMessage('MCP server not configured. Cannot delete datapoints.');
+        return;
+      }
+
+      const errors: string[] = [];
+      for (const name of names) {
+        const result = await mcpClient.dpDelete(name);
+        if (!result.success) {
+          errors.push(`${name}: ${result.error}`);
+        }
+      }
+
+      if (errors.length === 0) {
+        const msg = names.length === 1
+          ? `Datapoint "${names[0]}" deleted.`
+          : `${names.length} datapoints deleted.`;
+        vscode.window.showInformationMessage(msg);
+      } else {
+        vscode.window.showErrorMessage(`Failed to delete: ${errors.join('; ')}`);
+      }
+      dptTreeProvider.refresh();
     }),
   );
   log.info('Commands registered');

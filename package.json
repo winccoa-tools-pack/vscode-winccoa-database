@@ -70,6 +70,18 @@
         "command": "winccoa-database.selectProject",
         "title": "Select WinCC OA Project",
         "category": "WinCC OA Database"
+      },
+      {
+        "command": "winccoa-database.createDp",
+        "title": "New Datapoint",
+        "icon": "$(add)",
+        "category": "WinCC OA Database"
+      },
+      {
+        "command": "winccoa-database.deleteDp",
+        "title": "Delete Datapoint",
+        "icon": "$(trash)",
+        "category": "WinCC OA Database"
       }
     ],
     "menus": {
@@ -78,6 +90,28 @@
           "command": "winccoa-database.refreshDptTree",
           "when": "view == winccoa-database.dptView",
           "group": "navigation"
+        }
+      ],
+      "view/item/context": [
+        {
+          "command": "winccoa-database.createDp",
+          "when": "view == winccoa-database.dptView && viewItem == dpt",
+          "group": "1_edit"
+        },
+        {
+          "command": "winccoa-database.deleteDp",
+          "when": "view == winccoa-database.dptView && viewItem == dp",
+          "group": "2_delete"
+        }
+      ],
+      "commandPalette": [
+        {
+          "command": "winccoa-database.createDp",
+          "when": "false"
+        },
+        {
+          "command": "winccoa-database.deleteDp",
+          "when": "false"
         }
       ]
     },
