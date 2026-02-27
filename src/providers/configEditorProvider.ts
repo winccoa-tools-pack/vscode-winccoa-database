@@ -460,13 +460,22 @@ export class ConfigEditorPanel {
       const input = document.getElementById('valueInput');
       const btn = document.getElementById('setValueBtn');
       if (btn && input) {
-        btn.addEventListener('click', function() {
-          vscode.postMessage({ command: 'setValue', value: input.value });
-        });
-        input.addEventListener('keydown', function(e) {
-          if (e.key === 'Enter') {
-            vscode.postMessage({ command: 'setValue', value: input.value });
+        function trySetValue() {
+          const val = input.value;
+          if (input.dataset.integer === 'true' && val !== '' && !Number.isInteger(Number(val))) {
+            input.setCustomValidity('Value must be a whole number (no decimals).');
+            input.reportValidity();
+            return;
           }
+          input.setCustomValidity('');
+          vscode.postMessage({ command: 'setValue', value: val });
+        }
+        btn.addEventListener('click', trySetValue);
+        input.addEventListener('keydown', function(e) {
+          if (e.key === 'Enter') { trySetValue(); }
+        });
+        input.addEventListener('input', function() {
+          input.setCustomValidity('');
         });
       }
     })();
@@ -810,13 +819,13 @@ function buildValueInput(valueStr: string, datatype: number | undefined): string
     case OaElementType.INT:
     case OaElementType.LONG:
     case OaElementType.DYN_INT:
-      return `<input type="number" step="1" id="valueInput" value="${esc(valueStr)}" />`;
+      return `<input type="number" step="1" data-integer="true" id="valueInput" value="${esc(valueStr)}" />`;
     case OaElementType.UINT:
     case OaElementType.ULONG:
     case OaElementType.CHAR:
     case OaElementType.DYN_UINT:
     case OaElementType.DYN_CHAR:
-      return `<input type="number" step="1" min="0" id="valueInput" value="${esc(valueStr)}" />`;
+      return `<input type="number" step="1" min="0" data-integer="true" id="valueInput" value="${esc(valueStr)}" />`;
     case OaElementType.FLOAT:
     case OaElementType.DYN_FLOAT:
       return `<input type="number" step="any" id="valueInput" value="${esc(valueStr)}" />`;
