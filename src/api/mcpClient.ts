@@ -163,6 +163,23 @@ export class McpClient {
   async dpDelete(dpeName: string): Promise<{ success: boolean; error?: string }> {
     return this.callMcpTool('delete-datapoint', { dpeName });
   }
+
+  /** Create a new datapoint type via MCP */
+  async dpTypeCreate(typeName: string, elements: string[][], types: number[][]): Promise<{ success: boolean; error?: string }> {
+    return this.callMcpTool('create-dptype', { typeName, elements, types });
+  }
+
+  /** Delete a datapoint type (and all its datapoints) via MCP */
+  async dpTypeDelete(typeName: string): Promise<{ success: boolean; error?: string }> {
+    return this.callMcpTool('delete-dptype', { typeName });
+  }
+
+  /** Modify an existing datapoint type via MCP */
+  async dpTypeChange(typeName: string, elements: string[][], types: number[][], elementNames?: string[]): Promise<{ success: boolean; error?: string }> {
+    const args: Record<string, unknown> = { typeName, elements, types };
+    if (elementNames) args.elementNames = elementNames;
+    return this.callMcpTool('change-dptype', args);
+  }
 }
 
 function parseEnvFile(filePath: string): Record<string, string> {
