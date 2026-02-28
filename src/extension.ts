@@ -5,7 +5,106 @@ import { SqliteClient } from './db/sqliteClient';
 import { DptTreeProvider } from './providers/dptTreeProvider';
 import { DatabaseTreeItem } from './providers/dptTreeProvider';
 import { ConfigEditorPanel } from './providers/configEditorProvider';
+import { DptEditorPanel } from './providers/dptEditorProvider';
 import { McpClient } from './api/mcpClient';
+import { OaElementType } from './models/types';
+
+// ---------------------------------------------------------------------------
+// DPT structure helpers
+// ---------------------------------------------------------------------------
+
+interface DptField {
+  name: string;
+  typeCode: number;
+  children?: DptField[]; // only if typeCode === OaElementType.STRUCT
+}
+
+/** Build the parallel 2D arrays expected by WinCC OA dpTypeCreate / dpTypeChange.
+ *
+ * Row 0: [typeName, ""]              types row 0: [0, 0]
+ * Row 1: top-level field names       types row 1: their type codes
+ * Row 2: children of first struct    types row 2: their type codes
+ *
+ * MVP: one level of struct nesting.
+ * TODO: for full recursion, iterate over all struct fields at each depth.
+ */
+function buildDptArrays(typeName: string, fields: DptField[]): { elements: string[][]; types: number[][] } {
+  const elements: string[][] = [[typeName, '']];
+  const types: number[][] = [[0, 0]];
+
+  // Row 1: top-level fields
+  elements.push(fields.map(f => f.name));
+  types.push(fields.map(f => f.typeCode));
+
+  // Row 2: children of struct fields (first struct only — MVP)
+  const structFields = fields.filter(f => f.typeCode === OaElementType.STRUCT && f.children && f.children.length > 0);
+  if (structFields.length > 0) {
+    const children = structFields[0].children!;
+    elements.push(children.map(c => c.name));
+    types.push(children.map(c => c.typeCode));
+  }
+
+  return { elements, types };
+}
+
+const LEAF_TYPE_OPTIONS: Array<{ label: string; typeCode: number }> = [
+  { label: 'bool',   typeCode: OaElementType.BOOL },
+  { label: 'int',    typeCode: OaElementType.INT },
+  { label: 'uint',   typeCode: OaElementType.UINT },
+  { label: 'float',  typeCode: OaElementType.FLOAT },
+  { label: 'string', typeCode: OaElementType.TEXT },
+  { label: 'time',   typeCode: OaElementType.TIME },
+  { label: 'long',   typeCode: OaElementType.LONG },
+];
+
+const ALL_TYPE_OPTIONS: Array<{ label: string; typeCode: number }> = [
+  ...LEAF_TYPE_OPTIONS,
+  { label: 'struct', typeCode: OaElementType.STRUCT },
+];
+
+/** Collect a list of DptField values via VS Code quick-pick input boxes.
+ *  If leafOnly is true, struct is not offered (used for struct children in MVP). */
+async function collectDptFields(leafOnly: boolean): Promise<DptField[] | undefined> {
+  const fields: DptField[] = [];
+  const options = leafOnly ? LEAF_TYPE_OPTIONS : ALL_TYPE_OPTIONS;
+
+  while (true) {
+    const fieldName = await vscode.window.showInputBox({
+      prompt: `Enter field name (leave empty to finish${fields.length === 0 ? '' : `, ${fields.length} field(s) so far`})`,
+      placeHolder: 'fieldName',
+      validateInput: (v) => {
+        if (v === '') return undefined; // empty = done
+        if (!/^[a-zA-Z][a-zA-Z0-9_]*$/.test(v)) return 'Must start with a letter and contain only letters, digits, and underscores';
+        if (fields.some(f => f.name === v)) return 'Field name already used';
+        return undefined;
+      },
+    });
+
+    if (fieldName === undefined) return undefined; // user pressed Escape
+    if (fieldName === '') break; // done
+
+    const picked = await vscode.window.showQuickPick(
+      options.map(o => ({ label: o.label, typeCode: o.typeCode })),
+      { title: `Type for "${fieldName}"`, placeHolder: 'Select element type' }
+    );
+    if (!picked) return undefined; // Escape
+
+    const field: DptField = { name: fieldName, typeCode: picked.typeCode };
+
+    if (picked.typeCode === OaElementType.STRUCT) {
+      vscode.window.showInformationMessage(`Add child fields for struct "${fieldName}" (leave name empty when done):`);
+      const children = await collectDptFields(true);
+      if (children === undefined) return undefined;
+      field.children = children;
+    }
+
+    fields.push(field);
+  }
+
+  return fields;
+}
+
+// ---------------------------------------------------------------------------
 
 let sqliteClient: SqliteClient;
 let dptTreeProvider: DptTreeProvider;
@@ -39,19 +138,23 @@ export async function activate(context: vscode.ExtensionContext) {
   context.subscriptions.push(dptTreeView);
   log.info('Tree views registered');
 
-  // Register webview panel serializer for config editor
-  log.info('Registering webview panel serializer...');
+  // Register webview panel serializers
+  log.info('Registering webview panel serializers...');
   context.subscriptions.push(
     vscode.window.registerWebviewPanelSerializer('winccoa-database.configEditor', {
-      async deserializeWebviewPanel(webviewPanel: vscode.WebviewPanel) {
-        log.info('Deserializing config editor webview panel');
-        // The panel is already created, but we need to restore the ConfigEditorPanel instance
-        // For now, just dispose it - user will need to reopen
+      async deserializeWebviewPanel(webviewPanel: vscode.WebviewPanel, state: unknown) {
+        log.info(`Deserializing config editor webview panel, state=${JSON.stringify(state)}`);
         webviewPanel.dispose();
       }
-    })
+    }),
+    vscode.window.registerWebviewPanelSerializer('winccoa-database.dptEditor', {
+      async deserializeWebviewPanel(webviewPanel: vscode.WebviewPanel, state: unknown) {
+        log.info(`Deserializing DPT editor webview panel, state=${JSON.stringify(state)}`);
+        webviewPanel.dispose();
+      }
+    }),
   );
-  log.info('Webview panel serializer registered');
+  log.info('Webview panel serializers registered');
 
   // Register commands
   context.subscriptions.push(
@@ -93,6 +196,84 @@ export async function activate(context: vscode.ExtensionContext) {
         dptTreeProvider.refresh();
       } else {
         vscode.window.showErrorMessage(`Failed to create datapoint: ${result.error}`);
+      }
+    }),
+    vscode.commands.registerCommand('winccoa-database.editDpType', (item) => {
+      log.info(`Command: editDpType, dptLabel=${item?.label}`);
+      if (!item?.label || item.dptId === undefined) return;
+      if (!sqliteClient.isOpen) {
+        vscode.window.showWarningMessage('No WinCC OA project connected.');
+        return;
+      }
+      DptEditorPanel.show(sqliteClient, item.dptId, item.label as string, context.extensionUri, mcpClient);
+    }),
+    vscode.commands.registerCommand('winccoa-database.createDpType', async () => {
+      log.info('Command: createDpType');
+
+      const typeName = await vscode.window.showInputBox({
+        prompt: 'Enter name for the new datapoint type',
+        placeHolder: 'MyType',
+        validateInput: (v) => {
+          if (!v || v.trim() === '') return 'Name cannot be empty';
+          if (!/^[a-zA-Z][a-zA-Z0-9_]*$/.test(v)) return 'Must start with a letter and contain only letters, digits, and underscores';
+          return undefined;
+        },
+      });
+      if (!typeName) return;
+
+      vscode.window.showInformationMessage(`Define fields for "${typeName}" (leave name empty when done):`);
+      const fields = await collectDptFields(false);
+      if (fields === undefined) return;
+
+      if (fields.length === 0) {
+        vscode.window.showWarningMessage('No fields defined. Datapoint type not created.');
+        return;
+      }
+
+      if (!mcpClient.isConfigured) {
+        vscode.window.showErrorMessage('MCP server not configured. Cannot create datapoint type.');
+        return;
+      }
+
+      const { elements, types } = buildDptArrays(typeName, fields);
+      const result = await mcpClient.dpTypeCreate(typeName, elements, types);
+      if (result.success) {
+        vscode.window.showInformationMessage(`Datapoint type "${typeName}" created.`);
+        dptTreeProvider.refresh();
+      } else {
+        vscode.window.showErrorMessage(`Failed to create datapoint type: ${result.error}`);
+      }
+    }),
+    vscode.commands.registerCommand('winccoa-database.deleteDpType', async (item) => {
+      log.info(`Command: deleteDpType, dptLabel=${item?.label}`);
+      if (!item?.label) return;
+
+      const typeName = item.label as string;
+      const dps = sqliteClient.getDatapointsByDptId(item.dptId);
+      const dpCount = dps.length;
+
+      const message = dpCount === 0
+        ? `Delete datapoint type "${typeName}"? This cannot be undone.`
+        : `Delete type "${typeName}" and its ${dpCount} datapoint(s)? This cannot be undone.`;
+
+      const confirmLabel = dpCount === 0
+        ? 'Delete'
+        : `Delete Type and ${dpCount} Datapoint(s)`;
+
+      const confirm = await vscode.window.showWarningMessage(message, { modal: true }, confirmLabel);
+      if (confirm !== confirmLabel) return;
+
+      if (!mcpClient.isConfigured) {
+        vscode.window.showErrorMessage('MCP server not configured. Cannot delete datapoint type.');
+        return;
+      }
+
+      const result = await mcpClient.dpTypeDelete(typeName);
+      if (result.success) {
+        vscode.window.showInformationMessage(`Datapoint type "${typeName}" deleted.`);
+        dptTreeProvider.refresh();
+      } else {
+        vscode.window.showErrorMessage(`Failed to delete datapoint type: ${result.error}`);
       }
     }),
     vscode.commands.registerCommand('winccoa-database.deleteDp', async (item, selectedItems?: any[]) => {

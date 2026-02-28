@@ -82,12 +82,35 @@
         "title": "Delete Datapoint",
         "icon": "$(trash)",
         "category": "WinCC OA Database"
+      },
+      {
+        "command": "winccoa-database.createDpType",
+        "title": "New Datapoint Type",
+        "icon": "$(add)",
+        "category": "WinCC OA Database"
+      },
+      {
+        "command": "winccoa-database.deleteDpType",
+        "title": "Delete Datapoint Type",
+        "icon": "$(trash)",
+        "category": "WinCC OA Database"
+      },
+      {
+        "command": "winccoa-database.editDpType",
+        "title": "Edit Datapoint Type",
+        "icon": "$(edit)",
+        "category": "WinCC OA Database"
       }
     ],
     "menus": {
       "view/title": [
         {
           "command": "winccoa-database.refreshDptTree",
+          "when": "view == winccoa-database.dptView",
+          "group": "navigation"
+        },
+        {
+          "command": "winccoa-database.createDpType",
           "when": "view == winccoa-database.dptView",
           "group": "navigation"
         }
@@ -99,8 +122,18 @@
           "group": "1_edit"
         },
         {
+          "command": "winccoa-database.editDpType",
+          "when": "view == winccoa-database.dptView && viewItem == dpt",
+          "group": "1_edit"
+        },
+        {
           "command": "winccoa-database.deleteDp",
           "when": "view == winccoa-database.dptView && viewItem == dp",
+          "group": "2_delete"
+        },
+        {
+          "command": "winccoa-database.deleteDpType",
+          "when": "view == winccoa-database.dptView && viewItem == dpt",
           "group": "2_delete"
         }
       ],
@@ -111,6 +144,18 @@
         },
         {
           "command": "winccoa-database.deleteDp",
+          "when": "false"
+        },
+        {
+          "command": "winccoa-database.createDpType",
+          "when": "false"
+        },
+        {
+          "command": "winccoa-database.deleteDpType",
+          "when": "false"
+        },
+        {
+          "command": "winccoa-database.editDpType",
           "when": "false"
         }
       ]
