@@ -2,6 +2,62 @@ import * as fs from 'fs';
 import * as path from 'path';
 import * as vscode from 'vscode';
 
+// Maps OaElementType numeric codes → MCP server's elementTypeName strings
+const OA_TYPE_TO_MCP_NAME: Record<number, string> = {
+  1:  'Struct',
+  7:  'DynBool',  5:  'DynInt',   4:  'DynUInt',
+  55: 'DynLong', 59:  'DynULong', 6:  'DynFloat',
+  9:  'DynString', 10: 'DynTime', 8:  'DynBit32',
+  23: 'Bool',    21:  'Int',      20:  'UInt',
+  54: 'Long',    58:  'ULong',    22:  'Float',
+  25: 'String',  26:  'Time',     24:  'Bit32',
+  42: 'LangString', 46: 'Blob',   41:  'Typeref',
+};
+
+interface DpTypeNodeInput {
+  name: string;
+  elementTypeName: string;
+  newName?: string;
+  children?: DpTypeNodeInput[];
+}
+
+/**
+ * Converts the legacy 2-D array format produced by the webview's buildDptArrays()
+ * into the recursive tree structure expected by dp_types/dp_type_create|change.
+ *
+ * The 2-D format is a depth-first serialisation:
+ *   elements[0] = [typeName, '']   (header row)
+ *   elements[1] = ['field1', ...]  (top-level names, no leading '')
+ *   elements[i] = ['', 'child1', ...]  (children of preceding struct; leading '' marker)
+ */
+function arraysToStructure(typeName: string, elements: string[][], types: number[][]): DpTypeNodeInput {
+  const STRUCT_CODE = 1;
+  let rowIdx = 1; // row 0 is the header
+
+  function parseRow(withLeadingEmpty: boolean): DpTypeNodeInput[] {
+    if (rowIdx >= elements.length) { return []; }
+    const names = elements[rowIdx]!;
+    const codes = types[rowIdx]!;
+    rowIdx++;
+
+    const nodes: DpTypeNodeInput[] = [];
+    for (let i = withLeadingEmpty ? 1 : 0; i < names.length; i++) {
+      const code = codes[i]!;
+      const node: DpTypeNodeInput = {
+        name: names[i]!,
+        elementTypeName: OA_TYPE_TO_MCP_NAME[code] ?? `Unknown(${code})`,
+      };
+      if (code === STRUCT_CODE) {
+        node.children = parseRow(true);
+      }
+      nodes.push(node);
+    }
+    return nodes;
+  }
+
+  return { name: typeName, elementTypeName: 'Struct', children: parseRow(false) };
+}
+
 const log = vscode.window.createOutputChannel('WinCC OA Database', { log: true });
 
 export interface McpClientConfig {
@@ -14,7 +70,7 @@ export class McpClient {
 
   /** Auto-detect MCP server config from project's javascript/mcpServer/.env */
   configure(projectPath: string): boolean {
-    const envPath = path.join(projectPath, 'javascript', 'mcpServer', '.env');
+    const envPath = path.join(projectPath, 'javascript', 'dist', '.env');
     log.info(`[MCP] Looking for .env at: ${envPath}`);
 
     if (fs.existsSync(envPath)) {
@@ -121,9 +177,9 @@ export class McpClient {
             log.error(`[MCP] Failed to parse tool response: ${content.substring(0, 200)}`);
             return { success: false, error: content };
           }
-          if (parsed.success) {
+        if (parsed.success !== false) {
             log.info(`[MCP] ${toolName} success`);
-            return { success: true, data: parsed.data };
+            return { success: true, data: parsed };
           }
           log.error(`[MCP] ${toolName} failed: ${JSON.stringify(parsed)}`);
           return { success: false, error: parsed.message || parsed.error || `${toolName} returned failure`, data: parsed };
@@ -139,13 +195,14 @@ export class McpClient {
 
   /** Set a datapoint value via the MCP HTTP server (goes through WinCC OA event manager) */
   async dpSet(dpeName: string, value: unknown): Promise<{ success: boolean; error?: string }> {
-    const result = await this.callMcpTool('dp-set', {
-      datapoints: { dpeName, value },
+    const result = await this.callMcpTool('datapoints/dp_set', {
+      dpeNames: [dpeName],
+      values: [value],
     });
 
     if (!result.success && result.data) {
       const data = result.data as Record<string, any>;
-      const dpeError = data?.data?.[dpeName]?.error;
+      const dpeError = data?.results?.[dpeName]?.error;
       if (dpeError) {
         return { success: false, error: dpeError };
       }
@@ -156,29 +213,31 @@ export class McpClient {
 
   /** Create a new datapoint instance via MCP */
   async dpCreate(dpeName: string, dpType: string): Promise<{ success: boolean; error?: string }> {
-    return this.callMcpTool('create-datapoint', { dpeName, dpType });
+    return this.callMcpTool('datapoints/dp_create', { dpName: dpeName, dpType });
   }
 
   /** Delete a datapoint instance via MCP */
   async dpDelete(dpeName: string): Promise<{ success: boolean; error?: string }> {
-    return this.callMcpTool('delete-datapoint', { dpeName });
+    return this.callMcpTool('datapoints/dp_delete', { dpName: dpeName });
   }
 
   /** Create a new datapoint type via MCP */
   async dpTypeCreate(typeName: string, elements: string[][], types: number[][]): Promise<{ success: boolean; error?: string }> {
-    return this.callMcpTool('create-dptype', { typeName, elements, types });
+    return this.callMcpTool('dp_types/dp_type_create', {
+      structure: arraysToStructure(typeName, elements, types),
+    });
   }
 
   /** Delete a datapoint type (and all its datapoints) via MCP */
   async dpTypeDelete(typeName: string): Promise<{ success: boolean; error?: string }> {
-    return this.callMcpTool('delete-dptype', { typeName });
+    return this.callMcpTool('dp_types/dp_type_delete', { typeName });
   }
 
   /** Modify an existing datapoint type via MCP */
-  async dpTypeChange(typeName: string, elements: string[][], types: number[][], elementNames?: string[]): Promise<{ success: boolean; error?: string }> {
-    const args: Record<string, unknown> = { typeName, elements, types };
-    if (elementNames) args.elementNames = elementNames;
-    return this.callMcpTool('change-dptype', args);
+  async dpTypeChange(typeName: string, elements: string[][], types: number[][], _elementNames?: string[]): Promise<{ success: boolean; error?: string }> {
+    return this.callMcpTool('dp_types/dp_type_change', {
+      structure: arraysToStructure(typeName, elements, types),
+    });
   }
 }
 
