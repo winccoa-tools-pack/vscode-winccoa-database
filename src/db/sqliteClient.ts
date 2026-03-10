@@ -330,6 +330,15 @@ export class SqliteClient {
     );
   }
 
+  /** Get the WinCC OA system name (e.g. "System1") from the system table */
+  getSystemName(): string | undefined {
+    const row = this.queryOne<{ system_name: string }>(
+      this.identDb!,
+      'SELECT system_name FROM system LIMIT 1',
+    );
+    return row?.system_name;
+  }
+
   /** Get alert class canonical name from ident.sqlite datapoint table */
   getAlertClassName(dpId: number): string | undefined {
     const row = this.queryOne<{ canonical_name: string }>(
