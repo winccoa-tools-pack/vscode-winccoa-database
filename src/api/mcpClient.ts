@@ -67,10 +67,11 @@ export interface McpClientConfig {
 
 export class McpClient {
   private config: McpClientConfig | null = null;
+  private sessionId: string | null = null;
 
   /** Auto-detect MCP server config from project's javascript/mcpServer/.env */
   configure(projectPath: string): boolean {
-    const envPath = path.join(projectPath, 'javascript', 'dist', '.env');
+    const envPath = path.join(projectPath, 'javascript', 'mcpServer', '.env');
     log.info(`[MCP] Looking for .env at: ${envPath}`);
 
     if (fs.existsSync(envPath)) {
@@ -111,10 +112,54 @@ export class McpClient {
     return false;
   }
 
+  /** Perform MCP initialize handshake and cache the session ID. */
+  private async ensureSession(): Promise<void> {
+    if (this.sessionId || !this.config) { return; }
+
+    const body = {
+      jsonrpc: '2.0',
+      id: 0,
+      method: 'initialize',
+      params: {
+        protocolVersion: '2024-11-05',
+        capabilities: {},
+        clientInfo: { name: 'vscode-winccoa-database', version: '1.0.0' },
+      },
+    };
+
+    const response = await fetch(`${this.config.url}/mcp`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json, text/event-stream',
+        'Authorization': `Bearer ${this.config.token}`,
+      },
+      body: JSON.stringify(body),
+      signal: AbortSignal.timeout(10000),
+    });
+
+    if (!response.ok) {
+      throw new Error(`MCP initialize failed: HTTP ${response.status}`);
+    }
+
+    const sessionId = response.headers.get('mcp-session-id');
+    if (!sessionId) {
+      throw new Error('MCP server did not return a session ID');
+    }
+    this.sessionId = sessionId;
+    log.info(`[MCP] Session established: ${sessionId}`);
+  }
+
   /** Generic MCP tool invocation via JSON-RPC 2.0 over HTTP */
   private async callMcpTool(toolName: string, args: Record<string, unknown>): Promise<{ success: boolean; error?: string; data?: unknown }> {
     if (!this.config) {
       return { success: false, error: 'MCP client not configured. Is the MCP HTTP server running?' };
+    }
+
+    try {
+      await this.ensureSession();
+    } catch (err) {
+      return { success: false, error: `MCP session init failed: ${err}` };
     }
 
     const body = {
@@ -129,17 +174,36 @@ export class McpClient {
 
     log.info(`[MCP] ${toolName}: ${JSON.stringify(args).substring(0, 200)}`);
 
-    try {
-      const response = await fetch(`${this.config.url}/mcp`, {
+    const doRequest = async (): Promise<Response> => {
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json, text/event-stream',
+        'Authorization': `Bearer ${this.config!.token}`,
+      };
+      if (this.sessionId) {
+        headers['mcp-session-id'] = this.sessionId;
+      }
+      return fetch(`${this.config!.url}/mcp`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json, text/event-stream',
-          'Authorization': `Bearer ${this.config.token}`,
-        },
+        headers,
         body: JSON.stringify(body),
         signal: AbortSignal.timeout(15000),
       });
+    };
+
+    try {
+      let response = await doRequest();
+
+      // Session expired or server restarted — re-initialize once and retry
+      if (response.status === 404 || response.status === 400) {
+        this.sessionId = null;
+        try {
+          await this.ensureSession();
+        } catch (err) {
+          return { success: false, error: `MCP session re-init failed: ${err}` };
+        }
+        response = await doRequest();
+      }
 
       if (!response.ok) {
         const errText = await response.text();
@@ -195,7 +259,7 @@ export class McpClient {
 
   /** Set a datapoint value via the MCP HTTP server (goes through WinCC OA event manager) */
   async dpSet(dpeName: string, value: unknown): Promise<{ success: boolean; error?: string }> {
-    const result = await this.callMcpTool('datapoints/dp_set', {
+    const result = await this.callMcpTool('datapoints.dp_set', {
       dpeNames: [dpeName],
       values: [value],
     });
@@ -213,29 +277,29 @@ export class McpClient {
 
   /** Create a new datapoint instance via MCP */
   async dpCreate(dpeName: string, dpType: string): Promise<{ success: boolean; error?: string }> {
-    return this.callMcpTool('datapoints/dp_create', { dpName: dpeName, dpType });
+    return this.callMcpTool('datapoints.dp_create', { dpName: dpeName, dpType });
   }
 
   /** Delete a datapoint instance via MCP */
   async dpDelete(dpeName: string): Promise<{ success: boolean; error?: string }> {
-    return this.callMcpTool('datapoints/dp_delete', { dpName: dpeName });
+    return this.callMcpTool('datapoints.dp_delete', { dpName: dpeName });
   }
 
   /** Create a new datapoint type via MCP */
   async dpTypeCreate(typeName: string, elements: string[][], types: number[][]): Promise<{ success: boolean; error?: string }> {
-    return this.callMcpTool('dp_types/dp_type_create', {
+    return this.callMcpTool('dp_types.dp_type_create', {
       structure: arraysToStructure(typeName, elements, types),
     });
   }
 
   /** Delete a datapoint type (and all its datapoints) via MCP */
   async dpTypeDelete(typeName: string): Promise<{ success: boolean; error?: string }> {
-    return this.callMcpTool('dp_types/dp_type_delete', { typeName });
+    return this.callMcpTool('dp_types.dp_type_delete', { typeName });
   }
 
   /** Modify an existing datapoint type via MCP */
   async dpTypeChange(typeName: string, elements: string[][], types: number[][], _elementNames?: string[]): Promise<{ success: boolean; error?: string }> {
-    return this.callMcpTool('dp_types/dp_type_change', {
+    return this.callMcpTool('dp_types.dp_type_change', {
       structure: arraysToStructure(typeName, elements, types),
     });
   }
