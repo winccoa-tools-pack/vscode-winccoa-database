@@ -185,6 +185,10 @@ export class DptEditorPanel {
     }
     const result = await this.mcpClient.dpTypeCreate(typeName, elements, types);
     if (result.success) {
+      this.mode = 'edit';
+      this.currentTypeName = typeName;
+      this.panel.title = `Edit DPT: ${typeName}`;
+      this.panel.webview.postMessage({ command: 'switchToEditMode', typeName });
       vscode.window.showInformationMessage(`Datapoint type "${typeName}" created.`);
       vscode.commands.executeCommand('winccoa-database.refreshDptTree');
     } else {
@@ -294,7 +298,7 @@ export class DptEditorPanel {
 <body>
   <h2>${heading}</h2>
   ${mode === 'create'
-    ? `<div class="type-name-row">
+    ? `<div id="typeNameRow" class="type-name-row">
         <label for="typeName">Type name:</label>
         <input id="typeName" class="type-name" type="text" placeholder="MyType" />
       </div>`
@@ -325,8 +329,8 @@ export class DptEditorPanel {
       const vscode = acquireVsCodeApi();
       const TYPE_GROUPS = ${typeGroupsJson};
       const INITIAL_FIELDS = ${fieldsJson};
-      const MODE = ${modeJson};
-      const INITIAL_TYPE_NAME = ${typeNameJson};
+      let mode = ${modeJson};
+      let currentTypeName = ${typeNameJson};
       const STRUCT_TYPE = ${structTypeValue};
 
       const tbody = document.getElementById('fieldRows');
@@ -539,15 +543,31 @@ export class DptEditorPanel {
         var fields = collectFields();
         if (fields.length === 0) return;
 
-        if (MODE === 'create') {
+        if (mode === 'create') {
           var typeNameEl = document.getElementById('typeName');
           var tn = typeNameEl ? typeNameEl.value.trim() : '';
           if (!tn) { if (typeNameEl) typeNameEl.focus(); return; }
           var arr = buildDptArrays(tn, fields);
           vscode.postMessage({ command: 'createDpt', typeName: tn, elements: arr.elements, types: arr.types });
         } else {
-          var arr2 = buildDptArrays(INITIAL_TYPE_NAME, fields);
+          var arr2 = buildDptArrays(currentTypeName, fields);
           vscode.postMessage({ command: 'saveDptChange', elements: arr2.elements, types: arr2.types });
+        }
+      });
+
+      window.addEventListener('message', function(event) {
+        var msg = event.data;
+        if (msg.command === 'switchToEditMode') {
+          mode = 'edit';
+          currentTypeName = msg.typeName;
+          document.querySelector('h2').textContent = 'Edit Datapoint Type: ' + msg.typeName;
+          var typeNameRow = document.getElementById('typeNameRow');
+          if (typeNameRow) {
+            typeNameRow.className = 'info';
+            typeNameRow.innerHTML = 'Modify field names and types, add or remove fields, and drag rows to reorder. Click <strong>Save Changes</strong> to apply via WinCC OA <code>dpTypeChange</code>.';
+            typeNameRow.removeAttribute('id');
+          }
+          document.getElementById('actionBtn').textContent = 'Save Changes';
         }
       });
     })();
