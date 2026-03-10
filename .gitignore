@@ -53,3 +53,6 @@ DevEnv.code-workspace
 # Optional extras
 *.tgz
 .env
+
+# Local development scripts (not part of extension)
+db-explorer/
