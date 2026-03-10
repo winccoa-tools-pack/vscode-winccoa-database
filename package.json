@@ -100,6 +100,12 @@
         "title": "Edit Datapoint Type",
         "icon": "$(edit)",
         "category": "WinCC OA Database"
+      },
+      {
+        "command": "winccoa-database.openPostgresSettings",
+        "title": "Configure PostgreSQL Connection",
+        "icon": "$(settings-gear)",
+        "category": "WinCC OA Database"
       }
     ],
     "menus": {
@@ -111,6 +117,11 @@
         },
         {
           "command": "winccoa-database.createDpType",
+          "when": "view == winccoa-database.dptView",
+          "group": "navigation"
+        },
+        {
+          "command": "winccoa-database.openPostgresSettings",
           "when": "view == winccoa-database.dptView",
           "group": "navigation"
         }
@@ -167,6 +178,32 @@
           "type": "string",
           "default": "",
           "description": "Path to WinCC OA project directory. Leave empty for auto-detection."
+        },
+        "winccoa-database.postgres.host": {
+          "type": "string",
+          "default": "127.0.0.1",
+          "description": "PostgreSQL NGA host (default: 127.0.0.1)."
+        },
+        "winccoa-database.postgres.port": {
+          "type": "number",
+          "default": 15432,
+          "description": "PostgreSQL NGA port (default: 15432)."
+        },
+        "winccoa-database.postgres.database": {
+          "type": "string",
+          "default": "winccoa",
+          "description": "PostgreSQL NGA database name (default: winccoa)."
+        },
+        "winccoa-database.postgres.user": {
+          "type": "string",
+          "default": "para",
+          "description": "PostgreSQL NGA user (default: para)."
+        },
+        "winccoa-database.postgres.password": {
+          "type": "string",
+          "default": "",
+          "secret": true,
+          "description": "PostgreSQL NGA password. Required for history charts."
         }
       }
     }
@@ -178,6 +215,7 @@
     "@types/better-sqlite3": "^7.6.12",
     "@types/mocha": "^10.0.10",
     "@types/node": "^20.11.0",
+    "@types/pg": "^8.18.0",
     "@types/vscode": "^1.106.0",
     "@vscode/test-cli": "^0.0.12",
     "@vscode/test-electron": "^2.5.2",
@@ -223,6 +261,7 @@
     "style-check": "npm run format:check && npm run lint"
   },
   "dependencies": {
-    "better-sqlite3": "^12.6.2"
+    "better-sqlite3": "^12.6.2",
+    "pg": "^8.20.0"
   }
 }

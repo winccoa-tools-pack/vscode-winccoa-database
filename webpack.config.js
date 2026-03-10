@@ -15,6 +15,7 @@ const config = {
   externals: {
     vscode: 'commonjs vscode',
     'better-sqlite3': 'commonjs better-sqlite3',
+    'pg-native': 'commonjs pg-native', // optional native pg driver — not used
   },
   resolve: {
     extensions: ['.ts', '.js'],
