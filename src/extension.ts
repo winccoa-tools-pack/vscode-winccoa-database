@@ -7,6 +7,7 @@ import { DatabaseTreeItem } from './providers/dptTreeProvider';
 import { ConfigEditorPanel } from './providers/configEditorProvider';
 import { DptEditorPanel } from './providers/dptEditorProvider';
 import { McpClient } from './api/mcpClient';
+import { PostgresClient } from './db/postgresClient';
 
 // ---------------------------------------------------------------------------
 
@@ -14,6 +15,25 @@ let sqliteClient: SqliteClient;
 let dptTreeProvider: DptTreeProvider;
 let dptTreeView: vscode.TreeView<DatabaseTreeItem>;
 let mcpClient: McpClient;
+let postgresClient: PostgresClient;
+let dbWatchedFiles: string[] = [];
+let refreshDebounceTimer: ReturnType<typeof setTimeout> | undefined;
+
+function scheduleDebouncedRefresh(filename: string, curr: fs.Stats, prev: fs.Stats): void {
+  log.info(`SQLite change detected — file: ${filename}, mtime: ${prev.mtime.toISOString()} → ${curr.mtime.toISOString()}, size: ${prev.size} → ${curr.size}`);
+  if (refreshDebounceTimer) clearTimeout(refreshDebounceTimer);
+  refreshDebounceTimer = setTimeout(() => {
+    log.info('Debounce elapsed — firing tree refresh');
+    dptTreeProvider.refresh();
+  }, 1500);
+}
+
+function stopDbWatcher(): void {
+  for (const f of dbWatchedFiles) {
+    fs.unwatchFile(f);
+  }
+  dbWatchedFiles = [];
+}
 
 const MIN_SUPPORTED_VERSION = '3.20';
 
@@ -30,6 +50,7 @@ export async function activate(context: vscode.ExtensionContext) {
 
   sqliteClient = new SqliteClient();
   mcpClient = new McpClient();
+  postgresClient = new PostgresClient();
   dptTreeProvider = new DptTreeProvider(sqliteClient);
 
   // Register tree views
@@ -67,6 +88,9 @@ export async function activate(context: vscode.ExtensionContext) {
       dptTreeProvider.refresh();
     }),
     vscode.commands.registerCommand('winccoa-database.selectProject', () => selectProject()),
+    vscode.commands.registerCommand('winccoa-database.openPostgresSettings', () => {
+      vscode.commands.executeCommand('workbench.action.openSettings', 'winccoa-database.postgres');
+    }),
     vscode.commands.registerCommand('winccoa-database.openConfigEditor', (item) => {
       log.info(`Command: openConfigEditor, item=${JSON.stringify(item?.label)}, dpId=${item?.dpId}, elId=${item?.elId}`);
       if (item && item.dpId !== undefined && item.elId !== undefined) {
@@ -200,6 +224,7 @@ export async function activate(context: vscode.ExtensionContext) {
 
 export function deactivate() {
   log.info('WinCC OA Database deactivating');
+  stopDbWatcher();
   sqliteClient?.close();
 }
 
@@ -333,6 +358,7 @@ async function initProjectConnection(context: vscode.ExtensionContext): Promise<
 }
 
 function disconnectProject(message?: string): void {
+  stopDbWatcher();
   sqliteClient.close();
   dptTreeView.message = message;
   dptTreeProvider.refresh();
@@ -392,6 +418,24 @@ function connectToProject(projectPath: string, version?: string): void {
     dptTreeView.message = undefined;
     dptTreeProvider.refresh();
     log.info('Tree provider refreshed');
+
+    // Poll ident.sqlite and its WAL file for changes via stat() — reliable across all
+    // write mechanisms including WinCC OA system services (fs.watch misses these on Windows)
+    stopDbWatcher();
+    const watchOptions = { persistent: false, interval: 2000 };
+    const filesToWatch = [
+      path.join(sqliteDir, 'ident.sqlite'),
+      path.join(sqliteDir, 'ident.sqlite-wal'),
+    ];
+    for (const f of filesToWatch) {
+      fs.watchFile(f, watchOptions, (curr, prev) => {
+        if (curr.mtime > prev.mtime || curr.size !== prev.size) {
+          scheduleDebouncedRefresh(path.basename(f), curr, prev);
+        }
+      });
+    }
+    dbWatchedFiles = filesToWatch;
+    log.info(`Polling for SQLite changes (2s interval): ${filesToWatch.join(', ')}`);
 
     // Configure MCP client for value setting
     const mcpConfigured = mcpClient.configure(projectPath);
@@ -462,5 +506,5 @@ function openConfigEditor(dpId: number, elId: number, label: string, extensionUr
     return;
   }
 
-  ConfigEditorPanel.show(sqliteClient, dpId, elId, label, extensionUri, mcpClient);
+  ConfigEditorPanel.show(sqliteClient, dpId, elId, label, extensionUri, mcpClient, postgresClient);
 }
