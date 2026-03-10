@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 import type { SqliteClient } from '../db/sqliteClient';
 import type { McpClient } from '../api/mcpClient';
+import type { PostgresClient } from '../db/postgresClient';
 import type { DpeConfigs } from '../models/configs';
 import { OaElementType, getTypeName, isLeafType } from '../models/types';
 import { getAlarmState, getAlarmColorName, resolveColor, getBlinkClass, getAlarmStateLabel } from '../models/alarmColors';
@@ -15,11 +16,15 @@ export class ConfigEditorPanel {
   private currentDpId = 0;
   private currentElId = 0;
   private currentLabel = '';
+  private refreshInterval: ReturnType<typeof setInterval> | undefined;
+  private lastKnownSystemTime: string | null | undefined = undefined;
+  private static readonly REFRESH_INTERVAL_MS = 1000;
 
   private constructor(
     panel: vscode.WebviewPanel,
     private db: SqliteClient,
     private mcpClient: McpClient | null,
+    private postgresClient: PostgresClient | null,
   ) {
     this.panel = panel;
     this.panel.onDidDispose(() => this.dispose(), null, this.disposables);
@@ -39,11 +44,13 @@ export class ConfigEditorPanel {
     label: string,
     extensionUri: vscode.Uri,
     mcpClient: McpClient | null = null,
+    postgresClient: PostgresClient | null = null,
   ): void {
     const column = vscode.ViewColumn.One;
 
     if (ConfigEditorPanel.currentPanel) {
       ConfigEditorPanel.currentPanel.mcpClient = mcpClient;
+      ConfigEditorPanel.currentPanel.postgresClient = postgresClient;
       ConfigEditorPanel.currentPanel.panel.reveal(column);
       ConfigEditorPanel.currentPanel.update(db, dpId, elId, label);
       return;
@@ -56,13 +63,46 @@ export class ConfigEditorPanel {
       { enableScripts: true, retainContextWhenHidden: true },
     );
 
-    ConfigEditorPanel.currentPanel = new ConfigEditorPanel(panel, db, mcpClient);
+    ConfigEditorPanel.currentPanel = new ConfigEditorPanel(panel, db, mcpClient, postgresClient);
     ConfigEditorPanel.currentPanel.update(db, dpId, elId, label);
   }
 
-  private handleMessage(msg: { command: string; value?: string }): void {
+  private handleMessage(msg: { command: string; value?: string; timespan?: number }): void {
     if (msg.command === 'setValue' && msg.value !== undefined) {
       this.setValueViaMcp(msg.value);
+    } else if (msg.command === 'loadHistory' && msg.timespan !== undefined) {
+      this.loadHistory(msg.timespan).catch(() => {});
+    }
+  }
+
+  private async loadHistory(timespanMs: number): Promise<void> {
+    if (!this.postgresClient || !this.postgresClient.isConfigured) {
+      this.panel.webview.postMessage({
+        command: 'historyError',
+        error: 'PostgreSQL not configured. Set winccoa-database.postgres.password in settings.',
+      });
+      return;
+    }
+
+    const dpName = this.db.getDatapointName(this.currentDpId);
+    if (!dpName) {
+      this.panel.webview.postMessage({ command: 'historyError', error: 'Cannot determine datapoint name.' });
+      return;
+    }
+
+    const dpePath = this.db.getElementPath(this.currentDpId, this.currentElId);
+    const fullPath = dpePath ? `${dpName}.${dpePath}` : dpName;
+    const systemName = this.db.getSystemName() ?? 'System1';
+    const elementName = `${systemName}:${fullPath}`;
+
+    const toMs = Date.now();
+    const fromMs = toMs - timespanMs;
+
+    try {
+      const points = await this.postgresClient.getHistory(elementName, fromMs, toMs);
+      this.panel.webview.postMessage({ command: 'historyData', points });
+    } catch (err) {
+      this.panel.webview.postMessage({ command: 'historyError', error: String(err) });
     }
   }
 
@@ -111,10 +151,12 @@ export class ConfigEditorPanel {
   }
 
   private update(db: SqliteClient, dpId: number, elId: number, label: string): void {
+    this.db = db;
     this.currentDpId = dpId;
     this.currentElId = elId;
     this.currentLabel = label;
     this.panel.title = `Config: ${label}`;
+    this.lastKnownSystemTime = undefined; // reset cache when switching element
 
     const configs: DpeConfigs = {
       address: db.getAddressConfig(dpId, elId),
@@ -137,6 +179,63 @@ export class ConfigEditorPanel {
     const isLeaf = datatype !== undefined && isLeafType(datatype);
 
     this.panel.webview.html = this.getHtml(label, dpId, elId, dpName, datatype, isLeaf, configs);
+    this.startRefresh();
+  }
+
+  private startRefresh(): void {
+    this.stopRefresh();
+    this.refreshInterval = setInterval(() => this.sendRefresh(), ConfigEditorPanel.REFRESH_INTERVAL_MS);
+  }
+
+  private stopRefresh(): void {
+    if (this.refreshInterval !== undefined) {
+      clearInterval(this.refreshInterval);
+      this.refreshInterval = undefined;
+    }
+  }
+
+  private sendRefresh(): void {
+    if (!this.db.isOpen) return;
+
+    // Cheap check: only read last value first and skip full refresh if unchanged
+    const lv = this.db.getLastValue(this.currentDpId, this.currentElId);
+    const currentSystemTime = lv?.system_time ?? null;
+    if (currentSystemTime === this.lastKnownSystemTime) return;
+    this.lastKnownSystemTime = currentSystemTime;
+
+    const element = this.db.getElementByIds(this.currentDpId, this.currentElId);
+    const datatype = element?.datatype;
+    const isLeaf = datatype !== undefined && isLeafType(datatype);
+    const typeName = datatype !== undefined ? getTypeName(datatype) : 'unknown';
+
+    const configs: DpeConfigs = {
+      address: this.db.getAddressConfig(this.currentDpId, this.currentElId),
+      alertHdl: this.db.getAlertHdlConfig(this.currentDpId, this.currentElId),
+      alertHdlDetails: this.db.getAlertHdlDetails(this.currentDpId, this.currentElId),
+      archive: this.db.getArchiveConfig(this.currentDpId, this.currentElId),
+      archiveDetail: this.db.getArchiveDetail(this.currentDpId, this.currentElId),
+      pvRange: this.db.getPvRangeConfig(this.currentDpId, this.currentElId),
+      smooth: this.db.getSmoothConfig(this.currentDpId, this.currentElId),
+      distrib: this.db.getDistribConfig(this.currentDpId, this.currentElId),
+      lastValue: lv,
+      displayName: this.db.getDisplayName(this.currentDpId, this.currentElId),
+      unitAndFormat: this.db.getUnitAndFormat(this.currentDpId, this.currentElId),
+      activeAlerts: this.db.getActiveAlerts(this.currentDpId, this.currentElId),
+    };
+
+    this.panel.webview.postMessage({
+      command: 'refresh',
+      alarmBanner: isLeaf ? this.renderAlarmBanner(configs) : '',
+      onlinePanel: isLeaf ? this.renderOnlinePanelBody(configs, typeName) : '',
+      sections: {
+        address: this.renderAddress(configs),
+        alert: this.renderAlertHdl(configs),
+        archive: this.renderArchive(configs),
+        pvrange: this.renderPvRange(configs),
+        smooth: this.renderSmooth(configs),
+        distrib: this.renderDistrib(configs),
+      },
+    });
   }
 
   private getHtml(
@@ -167,14 +266,17 @@ export class ConfigEditorPanel {
       </div>
     `);
 
-    // Alarm banner — shown for leaf elements with active alerts
-    if (isLeaf) {
-      sections.push(this.renderAlarmBanner(configs));
-    }
+    // Alarm banner container — always present so live refresh can update it
+    sections.push(`<div id="alarm-banner-container">${isLeaf ? this.renderAlarmBanner(configs) : ''}</div>`);
 
     // Original + Online value panels side-by-side — only for leaf elements
     if (isLeaf) {
       sections.push(this.renderValuePanels(configs, typeName, datatype));
+    }
+
+    // History section (leaf elements only)
+    if (isLeaf) {
+      sections.push(this.renderHistorySection());
     }
 
     // Config sections
@@ -208,6 +310,67 @@ export class ConfigEditorPanel {
       margin: 0 0 8px 0;
       font-size: 1.3em;
       color: var(--vscode-editor-foreground);
+    }
+    .section.history {
+      border-left: 3px solid var(--vscode-charts-blue, #3794ff);
+    }
+    .history-controls {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+    .ts-group {
+      display: flex;
+      gap: 2px;
+    }
+    .ts-btn {
+      padding: 2px 8px;
+      font-size: 0.85em;
+      background: var(--vscode-editor-background);
+      color: var(--vscode-foreground);
+      border: 1px solid var(--vscode-panel-border);
+      border-radius: 3px;
+      cursor: pointer;
+    }
+    .ts-btn.active {
+      background: var(--vscode-button-background);
+      color: var(--vscode-button-foreground);
+      border-color: var(--vscode-button-background);
+    }
+    .ts-btn:hover:not(.active) {
+      background: var(--vscode-list-hoverBackground);
+    }
+    .view-mode-btn {
+      padding: 2px 10px;
+      font-size: 0.85em;
+      background: var(--vscode-editor-background);
+      color: var(--vscode-foreground);
+      border: 1px solid var(--vscode-panel-border);
+      border-radius: 3px;
+      cursor: pointer;
+    }
+    .view-mode-btn:hover {
+      background: var(--vscode-list-hoverBackground);
+    }
+    #historyLoading {
+      color: var(--vscode-descriptionForeground);
+      font-style: italic;
+      padding: 8px 0;
+    }
+    #historyErrorMsg {
+      color: var(--vscode-errorForeground);
+      padding: 8px 0;
+    }
+    #historyChart svg {
+      width: 100%;
+      display: block;
+      margin-top: 8px;
+    }
+    #historyTableWrap {
+      max-height: 300px;
+      overflow-y: auto;
+      margin-top: 8px;
     }
     .meta {
       display: flex;
@@ -457,6 +620,8 @@ export class ConfigEditorPanel {
   <script>
     (function() {
       const vscode = acquireVsCodeApi();
+
+      // ── Set Value ──────────────────────────────────────────────
       const input = document.getElementById('valueInput');
       const btn = document.getElementById('setValueBtn');
       if (btn && input) {
@@ -471,12 +636,166 @@ export class ConfigEditorPanel {
           vscode.postMessage({ command: 'setValue', value: val });
         }
         btn.addEventListener('click', trySetValue);
-        input.addEventListener('keydown', function(e) {
-          if (e.key === 'Enter') { trySetValue(); }
+        input.addEventListener('keydown', function(e) { if (e.key === 'Enter') trySetValue(); });
+        input.addEventListener('input', function() { input.setCustomValidity(''); });
+      }
+
+      // ── History ────────────────────────────────────────────────
+      const historyLoading = document.getElementById('historyLoading');
+      const historyErrorMsg = document.getElementById('historyErrorMsg');
+      const historyChart   = document.getElementById('historyChart');
+      const historyTableWrap = document.getElementById('historyTableWrap');
+      const viewModeBtn    = document.getElementById('viewModeBtn');
+
+      let historyMode = 'chart';   // 'chart' | 'table'
+      let currentSpan = 0;
+      let lastPoints = null;
+
+      function requestHistory() {
+        if (historyLoading) historyLoading.style.display = 'block';
+        if (historyErrorMsg) historyErrorMsg.style.display = 'none';
+        if (historyChart) historyChart.innerHTML = '';
+        if (historyTableWrap) historyTableWrap.innerHTML = '';
+        vscode.postMessage({ command: 'loadHistory', timespan: currentSpan });
+      }
+
+      document.querySelectorAll('.ts-btn').forEach(function(b) {
+        b.addEventListener('click', function() {
+          document.querySelectorAll('.ts-btn').forEach(function(x) { x.classList.remove('active'); });
+          b.classList.add('active');
+          currentSpan = Number(b.dataset.span);
+          requestHistory();
         });
-        input.addEventListener('input', function() {
-          input.setCustomValidity('');
+      });
+
+      if (viewModeBtn) {
+        viewModeBtn.addEventListener('click', function() {
+          historyMode = historyMode === 'chart' ? 'table' : 'chart';
+          viewModeBtn.textContent = historyMode === 'chart' ? 'Table' : 'Chart';
+          if (lastPoints) renderHistory(lastPoints);
         });
+      }
+
+      window.addEventListener('message', function(event) {
+        const msg = event.data;
+        if (msg.command === 'refresh') {
+          const alarmContainer = document.getElementById('alarm-banner-container');
+          if (alarmContainer) alarmContainer.innerHTML = msg.alarmBanner || '';
+          const onlinePanel = document.getElementById('online-panel-body');
+          if (onlinePanel) onlinePanel.innerHTML = msg.onlinePanel || '';
+          const sections = msg.sections || {};
+          Object.keys(sections).forEach(function(cls) {
+            const el = document.getElementById('section-' + cls);
+            if (el && sections[cls]) {
+              const tmp = document.createElement('div');
+              tmp.innerHTML = sections[cls].trim();
+              const newEl = tmp.firstElementChild;
+              if (newEl) el.replaceWith(newEl);
+            }
+          });
+        } else if (msg.command === 'historyData') {
+          if (historyLoading) historyLoading.style.display = 'none';
+          lastPoints = msg.points;
+          renderHistory(msg.points);
+        } else if (msg.command === 'historyError') {
+          if (historyLoading) historyLoading.style.display = 'none';
+          if (historyErrorMsg) {
+            historyErrorMsg.textContent = msg.error;
+            historyErrorMsg.style.display = 'block';
+          }
+        }
+      });
+
+      function renderHistory(points) {
+        if (historyMode === 'chart') {
+          if (historyChart) historyChart.style.display = '';
+          if (historyTableWrap) historyTableWrap.style.display = 'none';
+          renderChart(points, historyChart);
+        } else {
+          if (historyChart) historyChart.style.display = 'none';
+          if (historyTableWrap) historyTableWrap.style.display = '';
+          renderTable(points, historyTableWrap);
+        }
+      }
+
+      function renderChart(points, container) {
+        if (!points || !points.length) {
+          container.innerHTML = '<div class="value-none">No archived data for this timespan.</div>';
+          return;
+        }
+        const numeric = points.filter(function(p) { return typeof p.value === 'number'; });
+        if (numeric.length === 0) {
+          container.innerHTML = '<div class="value-none">No numeric data to chart &mdash; switch to Table view.</div>';
+          return;
+        }
+
+        const W = 560, H = 180;
+        const PL = 56, PR = 16, PT = 10, PB = 36;
+        const IW = W - PL - PR, IH = H - PT - PB;
+
+        const tMin = numeric[0].ms;
+        const tMax = numeric[numeric.length - 1].ms || tMin + 1;
+        const vals  = numeric.map(function(p) { return p.value; });
+        let vMin = Math.min.apply(null, vals);
+        let vMax = Math.max.apply(null, vals);
+        if (vMin === vMax) { vMin -= 1; vMax += 1; }
+
+        const tx = function(ms) { return PL + (ms - tMin) / (tMax - tMin) * IW; };
+        const ty = function(v)  { return PT + (1 - (v - vMin) / (vMax - vMin)) * IH; };
+
+        const pts = numeric.map(function(p) {
+          return tx(p.ms).toFixed(1) + ',' + ty(p.value).toFixed(1);
+        }).join(' ');
+
+        // Y-axis labels & grid
+        const TICKS = 4;
+        let yMarkup = '';
+        for (let i = 0; i <= TICKS; i++) {
+          const v = vMin + (vMax - vMin) * i / TICKS;
+          const y = ty(v).toFixed(1);
+          const lbl = Math.abs(v) >= 1000 ? v.toExponential(2) : parseFloat(v.toFixed(4)).toString();
+          yMarkup +=
+            '<line x1="' + PL + '" y1="' + y + '" x2="' + (PL + IW) + '" y2="' + y +
+            '" stroke="var(--vscode-panel-border)" stroke-dasharray="2"/>' +
+            '<text x="' + (PL - 4) + '" y="' + y +
+            '" text-anchor="end" dominant-baseline="middle" font-size="10" fill="var(--vscode-descriptionForeground)">' +
+            lbl + '</text>';
+        }
+
+        // X-axis labels
+        const fmtDT = function(ms) {
+          const d = new Date(ms);
+          return d.toLocaleDateString() + ' ' + d.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+        };
+        const xLeft  = fmtDT(tMin);
+        const xRight = fmtDT(tMax);
+        const count  = numeric.length + ' samples';
+
+        container.innerHTML =
+          '<svg viewBox="0 0 ' + W + ' ' + H + '">' +
+          '<style>text{font-family:var(--vscode-font-family);}</style>' +
+          yMarkup +
+          '<polyline points="' + pts + '" fill="none" stroke="var(--vscode-charts-blue,#3794ff)" stroke-width="1.5" stroke-linejoin="round"/>' +
+          '<line x1="' + PL + '" y1="' + PT + '" x2="' + PL + '" y2="' + (PT + IH) + '" stroke="var(--vscode-panel-border)"/>' +
+          '<line x1="' + PL + '" y1="' + (PT + IH) + '" x2="' + (PL + IW) + '" y2="' + (PT + IH) + '" stroke="var(--vscode-panel-border)"/>' +
+          '<text x="' + PL + '" y="' + (H - 4) + '" font-size="9" fill="var(--vscode-descriptionForeground)">' + xLeft + '</text>' +
+          '<text x="' + (PL + IW / 2) + '" y="' + (H - 4) + '" text-anchor="middle" font-size="9" fill="var(--vscode-descriptionForeground)">' + count + '</text>' +
+          '<text x="' + (PL + IW) + '" y="' + (H - 4) + '" text-anchor="end" font-size="9" fill="var(--vscode-descriptionForeground)">' + xRight + '</text>' +
+          '</svg>';
+      }
+
+      function renderTable(points, container) {
+        if (!points || !points.length) {
+          container.innerHTML = '<div class="value-none">No archived data for this timespan.</div>';
+          return;
+        }
+        const rows = points.map(function(p) {
+          const ts = new Date(p.ms).toISOString().replace('T', ' ').slice(0, 23);
+          const val = p.value !== null && p.value !== undefined ? p.value : '<em>null</em>';
+          return '<tr><td>' + ts + '</td><td>' + val + '</td></tr>';
+        }).join('');
+        container.innerHTML =
+          '<table><thead><tr><th>Timestamp</th><th>Value</th></tr></thead><tbody>' + rows + '</tbody></table>';
       }
     })();
   </script>
@@ -565,27 +884,6 @@ export class ConfigEditorPanel {
       `;
     }
 
-    // ── Online (right panel) ──
-    let onlineBody: string;
-    if (!lv) {
-      onlineBody = `<span class="value-none">No value recorded</span>`;
-    } else {
-      const sysTimestamp = formatNanosTimestamp(lv.system_time);
-      const statusHex = formatStatus64(lv.status_64);
-      onlineBody = `
-        <div class="online-value-display">
-          ${esc(valueStr)} ${unitHtml}
-        </div>
-        <div class="value-timestamp">Source time: ${esc(sysTimestamp)}</div>
-        <table style="margin-top: 8px;">
-          <tr><th>Status</th><td>${esc(statusHex)}</td></tr>
-          <tr><th>Type</th><td>${esc(elementTypeName)}</td></tr>
-          <tr><th>Manager</th><td>${lv.manager_id}</td></tr>
-          <tr><th>User</th><td>${lv.user_id}</td></tr>
-        </table>
-      `;
-    }
-
     return `
       <div class="value-panels">
         <div class="value-panel original">
@@ -594,9 +892,33 @@ export class ConfigEditorPanel {
         </div>
         <div class="value-panel online">
           <div class="value-panel-header"><span>Online Value</span></div>
-          <div class="value-panel-body">${onlineBody}</div>
+          <div class="value-panel-body" id="online-panel-body">${this.renderOnlinePanelBody(configs, elementTypeName)}</div>
         </div>
       </div>
+    `;
+  }
+
+  private renderOnlinePanelBody(configs: DpeConfigs, typeName: string): string {
+    const lv = configs.lastValue;
+    const unit = configs.unitAndFormat?.unit || '';
+    const valueStr = lv && lv.value !== null && lv.value !== undefined ? String(lv.value) : '';
+    const unitHtml = unit ? `<span class="value-unit">${esc(unit)}</span>` : '';
+    if (!lv) {
+      return `<span class="value-none">No value recorded</span>`;
+    }
+    const sysTimestamp = formatNanosTimestamp(lv.system_time);
+    const statusHex = formatStatus64(lv.status_64);
+    return `
+      <div class="online-value-display">
+        ${esc(valueStr)} ${unitHtml}
+      </div>
+      <div class="value-timestamp">Source time: ${esc(sysTimestamp)}</div>
+      <table style="margin-top: 8px;">
+        <tr><th>Status</th><td>${esc(statusHex)}</td></tr>
+        <tr><th>Type</th><td>${esc(typeName)}</td></tr>
+        <tr><th>Manager</th><td>${lv.manager_id}</td></tr>
+        <tr><th>User</th><td>${lv.user_id}</td></tr>
+      </table>
     `;
   }
 
@@ -773,9 +1095,35 @@ export class ConfigEditorPanel {
     `);
   }
 
+  private renderHistorySection(): string {
+    return `
+      <div class="section history" id="historySection">
+        <div class="section-header">
+          <span>History</span>
+          <div class="history-controls">
+            <div class="ts-group">
+              <button class="ts-btn" data-span="3600000">1h</button>
+              <button class="ts-btn" data-span="21600000">6h</button>
+              <button class="ts-btn" data-span="86400000">24h</button>
+              <button class="ts-btn" data-span="604800000">7d</button>
+              <button class="ts-btn" data-span="2592000000">30d</button>
+            </div>
+            <button class="view-mode-btn" id="viewModeBtn">Table</button>
+          </div>
+        </div>
+        <div class="section-body">
+          <div id="historyLoading" style="display:none">Loading&hellip;</div>
+          <div id="historyErrorMsg" style="display:none"></div>
+          <div id="historyChart"></div>
+          <div id="historyTableWrap" style="display:none"></div>
+        </div>
+      </div>
+    `;
+  }
+
   private renderSection(title: string, cssClass: string, body: string): string {
     return `
-      <div class="section ${cssClass}">
+      <div class="section ${cssClass}" id="section-${cssClass}">
         <div class="section-header"><span>${esc(title)}</span></div>
         <div class="section-body">${body}</div>
       </div>
@@ -784,7 +1132,7 @@ export class ConfigEditorPanel {
 
   private renderEmptySection(title: string, cssClass: string): string {
     return `
-      <div class="section ${cssClass} empty">
+      <div class="section ${cssClass} empty" id="section-${cssClass}">
         <div class="section-header">
           <span>${esc(title)}</span>
           <span class="meta-item">not configured</span>
@@ -794,6 +1142,7 @@ export class ConfigEditorPanel {
   }
 
   private dispose(): void {
+    this.stopRefresh();
     ConfigEditorPanel.currentPanel = undefined;
     this.panel.dispose();
     while (this.disposables.length) {
