@@ -6,6 +6,7 @@
     "publisher": "winccoa-tools-pack",
     "author": "winccoa-tools-pack",
     "license": "MIT",
+    "icon": "resources/icons/marketplace-icon.png",
     "categories": [
         "Other"
     ],
