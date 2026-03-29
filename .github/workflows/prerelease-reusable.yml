@@ -54,13 +54,8 @@ jobs:
         include:
           - os: ubuntu-latest
             target: linux-x64
-          - os: ubuntu-24.04-arm64
-            target: linux-arm64
           - os: windows-latest
             target: win32-x64
-          - os: windows-latest
-            target: win32-arm64
-            cross_arch: arm64
     outputs:
       version: ${{ steps.meta.outputs.version }}
       tag: ${{ steps.meta.outputs.tag }}
@@ -87,15 +82,12 @@ jobs:
           TARGET="${{ matrix.target }}"
           PLAT="${TARGET%%-*}"
           ARCH="${TARGET##*-}"
-          CROSS_ARCH="${{ matrix.cross_arch }}"
-          ELECTRON_ARCH="${CROSS_ARCH:-$ARCH}"
-
           # Node prebuilds: download from GitHub releases (works cross-platform)
           node scripts/collect-prebuilds.js --platform "$PLAT" --arch "$ARCH" --download-node 20.0.0 22.0.0
 
-          # Electron prebuild: compile (with optional cross-compile arch)
-          npx electron-rebuild -v 39.3.0 --arch "$ELECTRON_ARCH"
-          node scripts/collect-prebuilds.js --platform "$PLAT" --arch "$ELECTRON_ARCH" --electron
+          # Electron prebuild: compile for target arch
+          npx electron-rebuild -v 39.3.0 --arch "$ARCH"
+          node scripts/collect-prebuilds.js --platform "$PLAT" --arch "$ARCH" --electron
 
       - name: Install tools
         run: npm install -g @vscode/vsce
@@ -146,7 +138,7 @@ jobs:
             echo ""
             echo "### 🔍 Testing Notes"
             echo "- This is a **pre-release** build; download the attached VSIX and test locally"
-            echo "- Platform-specific packages: **linux-x64**, **linux-arm64**, **win32-x64**, **win32-arm64**"
+            echo "- Platform-specific packages: **linux-x64**, **win32-x64**"
             echo "- Source branch: ${{ inputs.target_branch }}"
             echo "- Report issues at: https://github.com/${{ github.repository }}/issues"
             echo "EOF"
