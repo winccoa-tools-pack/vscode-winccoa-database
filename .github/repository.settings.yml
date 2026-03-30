@@ -1,7 +1,7 @@
 # Repository settings applied via GitHub REST API by .github/workflows/apply-settings-and-rulesets.yml
 # This repo uses GitFlow: develop is default, main is stable release.
 
-description: "VS Code Tools Pack for WinCC OA"
+description: "A VS Code extension that recreates the WinCC OA PARA module, providing a graphical interface for browsing and editing datapoint types (DPTs), datapoints (DPs), and their configurations directly from VS Code."
 homepage: "https://github.com/winccoa-tools-pack"
 default_branch: "develop"
 
