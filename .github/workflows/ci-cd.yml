@@ -26,6 +26,10 @@ jobs:
       build_command: "npm run compile && npm run compile:tests"
       enable_coverage: true
       enable_xvfb: true
+      # TODO: Re-enable once the Docker image ships Node >=24.
+      # Tracked in: https://github.com/winccoa-tools-pack/vscode-winccoa-database/issues/64
+      # See: https://github.com/winccoa-tools-pack/vscode-winccoa-database/actions/runs/23864359925/job/69579695678
+      enable_integration_tests: false
       integration_test_command: "xvfb-run -a npx --no-install vscode-test --label integrationTests"
       fixture_config_path: "./src/test/fixtures/projects/runnable/config/config"
     secrets: inherit
