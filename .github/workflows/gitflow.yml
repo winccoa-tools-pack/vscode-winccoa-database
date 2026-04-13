@@ -71,7 +71,7 @@ jobs:
           git push --force-with-lease origin "${{ steps.prep.outputs.up_branch }}"
 
       - name: Create or update PR (draft if conflicts)
-        uses: actions/github-script@v8
+        uses: actions/github-script@v9
         with:
           script: |
             const owner = context.repo.owner;
