@@ -207,7 +207,7 @@
         "prettier": "^3.8.3",
         "source-map": "^0.8.0-beta.0",
         "ts-loader": "^9.5.7",
-        "tsx": "^4.21.0",
+        "tsx": "^4.22.1",
         "typescript": "^6.0.3",
         "typescript-eslint": "^8.59.1",
         "webpack": "^5.106.2",
