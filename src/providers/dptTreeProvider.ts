@@ -440,14 +440,14 @@ export class DptTreeProvider
             const isStructOrRef =
                 el.datatype === OaElementType.STRUCT ||
                 el.datatype === OaElementType.REFERENCE;
-            const isExpandable = hasChildren || isStructOrRef;
+            const hasStructureChildren = hasChildren || isStructOrRef;
 
             // Leaf elements are always expandable now (to show configs)
             const isLeaf = !isStructOrRef && !hasChildren;
 
             return new DatabaseTreeItem(
                 el.canonical_name,
-                isExpandable || isLeaf
+                hasStructureChildren || isLeaf
                     ? vscode.TreeItemCollapsibleState.Collapsed
                     : vscode.TreeItemCollapsibleState.None,
                 'dpElement',

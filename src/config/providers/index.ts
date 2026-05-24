@@ -10,20 +10,20 @@ import { GeneralProvider } from './generalProvider';
 import { URangeProvider } from './uRangeProvider';
 import { RuntimeLinkProvider } from './base';
 
-const DEFERRED_CONFIGS: Array<{ name: string; label: string }> = [
-    { name: '_alert_hdl', label: '_alert_hdl' },
-    { name: '_alert_class', label: '_alert_class' },
-    { name: '_auth', label: '_auth' },
-    { name: '_cmd_conv', label: '_cmd_conv' },
-    { name: '_msg_conv', label: '_msg_conv' },
-    { name: '_dp_fct', label: '_dp_fct' },
-    { name: '_connect', label: '_connect' },
-    { name: '_corr', label: '_corr' },
-    { name: '_offline', label: '_offline' },
-    { name: '_online', label: '_online' },
-    { name: '_original', label: '_original' },
-    { name: '_lock', label: '_lock' },
-    { name: '_start', label: '_start' },
+const DEFERRED_CONFIGS = [
+    '_alert_hdl',
+    '_alert_class',
+    '_auth',
+    '_cmd_conv',
+    '_msg_conv',
+    '_dp_fct',
+    '_connect',
+    '_corr',
+    '_offline',
+    '_online',
+    '_original',
+    '_lock',
+    '_start',
 ];
 
 export function createConfigProviders(db: SqliteClient): ConfigProvider[] {
@@ -36,7 +36,7 @@ export function createConfigProviders(db: SqliteClient): ConfigProvider[] {
         new DefaultProvider(),
         new GeneralProvider(),
         new URangeProvider(),
-        ...DEFERRED_CONFIGS.map((config) => new RuntimeLinkProvider(config.name, config.label)),
+        ...DEFERRED_CONFIGS.map((name) => new RuntimeLinkProvider(name, name)),
     ];
 
     return providers;
