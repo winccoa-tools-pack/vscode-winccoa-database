@@ -31,7 +31,7 @@
     },
     "homepage": "https://github.com/winccoa-tools-pack/vscode-winccoa-database#readme",
     "engines": {
-        "vscode": "^1.110.0"
+        "vscode": "^1.118.0"
     },
     "main": "./dist/extension.js",
     "activationEvents": [
