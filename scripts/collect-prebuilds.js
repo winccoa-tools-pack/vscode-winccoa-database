@@ -182,9 +182,7 @@ if (mode === '--download-electron') {
         const actualAbi = match[1];
         if (actualAbi !== targetAbi) {
             fs.unlinkSync(dest);
-            console.error(
-                `ABI mismatch! Expected ${targetAbi} but binary reports ${actualAbi}.`,
-            );
+            console.error(`ABI mismatch! Expected ${targetAbi} but binary reports ${actualAbi}.`);
             process.exit(1);
         }
         console.log(`ABI verified: ${actualAbi} \u2713`);
@@ -270,8 +268,8 @@ if (mode === '--electron') {
             fs.unlinkSync(dest);
             console.error(
                 `ABI mismatch! Expected ${targetAbi} but binary reports ${actualAbi}.\n` +
-                `The binary in ${SOURCE} was not rebuilt for Electron.\n` +
-                `Run "npm run rebuild" or check that electron-rebuild succeeded.`,
+                    `The binary in ${SOURCE} was not rebuilt for Electron.\n` +
+                    `Run "npm run rebuild" or check that electron-rebuild succeeded.`,
             );
             process.exit(1);
         }
@@ -281,8 +279,8 @@ if (mode === '--electron') {
         // which would mean it was built for Node.js (not Electron) — that's wrong.
         console.error(
             `ABI mismatch! Binary loaded cleanly under Node.js ${process.version}.\n` +
-            `Expected an Electron binary (ABI ${targetAbi}), but got a Node.js binary.\n` +
-            `The binary in ${SOURCE} was not rebuilt for Electron.`,
+                `Expected an Electron binary (ABI ${targetAbi}), but got a Node.js binary.\n` +
+                `The binary in ${SOURCE} was not rebuilt for Electron.`,
         );
         fs.unlinkSync(dest);
         process.exit(1);
