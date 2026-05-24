@@ -14,6 +14,9 @@ PLATFORM      := $(shell node -p "process.platform")
 ARCH          := $(shell node -p "process.arch")
 NODE_ABI      := $(shell node -p "process.versions.modules")
 NODE_GYP      := npx node-gyp
+NODE_RM       := node -e "require('fs').rmSync(process.argv[1], { recursive: true, force: true, maxRetries: 10, retryDelay: 200 })"
+NODE_MKDIR    := node -e "require('fs').mkdirSync(process.argv[1], { recursive: true })"
+NODE_LS       := node -e "const fs=require('fs'); const path=require('path'); const dir=process.argv[1]; if (fs.existsSync(dir)) { for (const entry of fs.readdirSync(dir)) console.log(path.join(dir, entry)); }"
 
 # Test workspace configuration
 TEST_WORKSPACE ?= .
@@ -25,12 +28,15 @@ all: clean install build prebuilds package
 # ── Clean ─────────────────────────────────────────────────────────────
 clean:
 	@echo "Cleaning build artifacts..."
-	@rm -rf out dist $(BIN_DIR) $(PREBUILDS_DIR)
+	@$(NODE_RM) out
+	@$(NODE_RM) dist
+	@$(NODE_RM) $(BIN_DIR)
+	@$(NODE_RM) $(PREBUILDS_DIR)
 	@echo "Clean complete."
 
 clean-all: clean
 	@echo "Removing node_modules..."
-	@rm -rf node_modules
+	@$(NODE_RM) node_modules
 	@echo "Clean-all complete."
 
 # ── Install ───────────────────────────────────────────────────────────
@@ -61,33 +67,29 @@ ELECTRON_ARCH ?= $(ARCH)
 
 prebuilds: prebuild-node prebuild-electron
 	@echo "Prebuilds collected in $(PREBUILDS_DIR)/$(PLATFORM)-$(ARCH)/"
-	@ls -1 $(PREBUILDS_DIR)/$(PLATFORM)-$(ARCH)/
+	@$(NODE_LS) $(PREBUILDS_DIR)/$(PLATFORM)-$(ARCH)
 
 prebuild-node:
 	@echo "Downloading portable Node.js prebuilds from GitHub releases..."
 	@node scripts/collect-prebuilds.js --platform $(PLATFORM) --arch $(ARCH) --download-node $(NODE_TARGETS)
 
+# Electron version targeted by VS Code (update when bumping engines.vscode)
+ELECTRON_VERSION ?= 39.3.0
+
 prebuild-electron:
-	@NODE_MAJOR=$$(node -p "process.versions.node.split('.')[0]"); \
-	if [ "$$NODE_MAJOR" -lt 22 ]; then \
-		echo "Skipping Electron prebuild: @electron/rebuild requires Node >= 22 (have $$(node --version))"; \
-	else \
-		echo "Rebuilding for Electron (arch=$(ELECTRON_ARCH))..." && \
-		npx electron-rebuild -v 39.3.0 --arch $(ELECTRON_ARCH) && \
-		echo "Collecting Electron prebuild..." && \
-		node scripts/collect-prebuilds.js --platform $(PLATFORM) --arch $(ELECTRON_ARCH) --electron; \
-	fi
+	@echo "Downloading Electron $(ELECTRON_VERSION) prebuild from GitHub releases..."
+	@node scripts/collect-prebuilds.js --platform $(PLATFORM) --arch $(ELECTRON_ARCH) --download-electron $(ELECTRON_VERSION)
 
 # ── Package ───────────────────────────────────────────────────────────
 package:
 	@echo "Packaging VSIX..."
-	@mkdir -p $(BIN_DIR)
+	@$(NODE_MKDIR) $(BIN_DIR)
 	@$(VSCE) package --out $(BIN_DIR)/$(EXTENSION_NAME)-$(VERSION).vsix
 	@echo "Packaged: $(BIN_DIR)/$(EXTENSION_NAME)-$(VERSION).vsix"
 
 package-target:
 	@echo "Packaging platform-specific VSIX ($(PLATFORM)-$(ARCH))..."
-	@mkdir -p $(BIN_DIR)
+	@$(NODE_MKDIR) $(BIN_DIR)
 	@$(VSCE) package --target $(PLATFORM)-$(ARCH) \
 		--out $(BIN_DIR)/$(EXTENSION_NAME)-$(VERSION)-$(PLATFORM)-$(ARCH).vsix
 	@echo "Packaged: $(BIN_DIR)/$(EXTENSION_NAME)-$(VERSION)-$(PLATFORM)-$(ARCH).vsix"
