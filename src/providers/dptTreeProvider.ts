@@ -2,12 +2,21 @@ import * as vscode from 'vscode';
 import type { SqliteClient } from '../db/sqliteClient';
 import type { DpElement } from '../models/dpElement';
 import { getTypeName, OaElementType } from '../models/types';
+import type { ConfigProvider, ElementRef, AttributeNodeModel } from '../config/types';
+import { createConfigProviders } from '../config/providers/index';
 
 const log = vscode.window.createOutputChannel('WinCC OA Database', { log: true });
 
-type ItemType = 'dpt' | 'dp' | 'dpElement';
+type ItemType = 'dpt' | 'dp' | 'dpElement' | 'config' | 'configAttribute';
 
 export class DatabaseTreeItem extends vscode.TreeItem {
+    /** For config/configAttribute items: the config name (e.g. '_address') */
+    public readonly configName?: string;
+    /** For configAttribute items: the full CTRL path */
+    public readonly ctrlPath?: string;
+    /** For config items: the docs URL */
+    public readonly docsUrl?: string;
+
     constructor(
         public readonly label: string,
         public readonly collapsibleState: vscode.TreeItemCollapsibleState,
@@ -17,8 +26,19 @@ export class DatabaseTreeItem extends vscode.TreeItem {
         public readonly elId: number = 0,
         public readonly datatype: number = 0,
         public readonly db?: SqliteClient,
+        options?: {
+            configName?: string;
+            ctrlPath?: string;
+            docsUrl?: string;
+            description?: string;
+            tooltip?: string;
+        },
     ) {
         super(label, collapsibleState);
+
+        this.configName = options?.configName;
+        this.ctrlPath = options?.ctrlPath;
+        this.docsUrl = options?.docsUrl;
 
         switch (itemType) {
             case 'dpt':
@@ -47,6 +67,18 @@ export class DatabaseTreeItem extends vscode.TreeItem {
                     };
                 }
                 break;
+            case 'config':
+                this.contextValue = 'config';
+                this.iconPath = new vscode.ThemeIcon('gear');
+                this.description = options?.description;
+                this.tooltip = options?.tooltip;
+                break;
+            case 'configAttribute':
+                this.contextValue = 'configAttribute';
+                this.iconPath = new vscode.ThemeIcon('symbol-property');
+                this.description = options?.description;
+                this.tooltip = options?.tooltip;
+                break;
         }
     }
 
@@ -73,6 +105,16 @@ export class DatabaseTreeItem extends vscode.TreeItem {
                 return undefined;
         }
     }
+
+    /**
+     * Get the CTRL path for copy/drag operations.
+     * For config/configAttribute items, returns the CTRL path.
+     * For other items, delegates to getFullDpName().
+     */
+    getCtrlPath(): string | undefined {
+        if (this.ctrlPath) return this.ctrlPath;
+        return this.getFullDpName();
+    }
 }
 
 export class DptTreeProvider
@@ -86,8 +128,11 @@ export class DptTreeProvider
     readonly onDidChangeTreeData = this._onDidChangeTreeData.event;
 
     private showInternal = false;
+    private configProviders: ConfigProvider[] = [];
 
-    constructor(private db: SqliteClient) {}
+    constructor(private db: SqliteClient) {
+        this.configProviders = createConfigProviders(db);
+    }
 
     refresh(): void {
         this._onDidChangeTreeData.fire(undefined);
@@ -122,22 +167,26 @@ export class DptTreeProvider
                 return this.getDpChildren(element.dptId, element.dpId);
             case 'dpElement':
                 return this.getElementChildren(element.dptId, element.dpId, element.elId);
+            case 'config':
+                return this.getConfigAttributeChildren(element);
+            case 'configAttribute':
+                return [];
             default:
                 return [];
         }
     }
 
     /**
-     * Handle drag operation - provide the full DP name as text/plain
+     * Handle drag operation - provide the full DP name or CTRL path as text/plain
      */
     handleDrag(source: DatabaseTreeItem[], dataTransfer: vscode.DataTransfer): void {
         if (source.length === 0) return;
 
         const item = source[0];
-        const fullName = item.getFullDpName();
-        if (fullName) {
-            dataTransfer.set('text/plain', new vscode.DataTransferItem(fullName));
-            log.info(`[Drag] Set text/plain = "${fullName}"`);
+        const path = item.getCtrlPath();
+        if (path) {
+            dataTransfer.set('text/plain', new vscode.DataTransferItem(path));
+            log.info(`[Drag] Set text/plain = "${path}"`);
         }
     }
 
@@ -201,14 +250,162 @@ export class DptTreeProvider
         return this.buildElementChildren(elements, 0, dpId);
     }
 
-    /** Element expanded: show child elements */
+    /** Element expanded: show child elements + config nodes for leaf elements */
     private getElementChildren(
         dptId: number,
         dpId: number,
         parentElId: number,
     ): DatabaseTreeItem[] {
         const elements = this.db.getElementsByDptId(dptId);
+        const parentEl = elements.find((e) => e.el_id === parentElId);
+
+        // If this is a leaf element (non-STRUCT, non-REFERENCE), show config nodes
+        if (
+            parentEl &&
+            parentEl.datatype !== OaElementType.STRUCT &&
+            parentEl.datatype !== OaElementType.REFERENCE
+        ) {
+            return this.getConfigChildren(dpId, parentElId, dptId);
+        }
+
+        // Otherwise, show child elements
         return this.buildElementChildren(elements, parentElId, dpId);
+    }
+
+    /** Build config nodes for a leaf DPE */
+    private getConfigChildren(dpId: number, elId: number, dptId: number): DatabaseTreeItem[] {
+        const elementRef = this.buildElementRef(dpId, elId, dptId);
+        if (!elementRef) return [];
+
+        const configNodes: DatabaseTreeItem[] = [];
+
+        for (const provider of this.configProviders) {
+            try {
+                if (!provider.supports(elementRef)) continue;
+
+                const node = provider.getConfigNode(elementRef);
+                if (!node) continue;
+
+                // Only show configs that exist or are runtime links
+                if (node.source === 'unavailable' && provider.phase > 1) continue;
+
+                const tooltipParts = [
+                    `Config: ${node.configName}`,
+                    `Source: ${node.source}`,
+                    `Freshness: ${provider.dataContract.freshness}`,
+                ];
+                if (provider.dataContract.notes) {
+                    tooltipParts.push(provider.dataContract.notes);
+                }
+
+                configNodes.push(
+                    new DatabaseTreeItem(
+                        node.label,
+                        node.isExpandable
+                            ? vscode.TreeItemCollapsibleState.Collapsed
+                            : vscode.TreeItemCollapsibleState.None,
+                        'config',
+                        dptId,
+                        dpId,
+                        elId,
+                        0,
+                        this.db,
+                        {
+                            configName: node.configName,
+                            ctrlPath: `${elementRef.fullElementPath}:${node.configName}`,
+                            docsUrl: node.docsUrl,
+                            description: node.description,
+                            tooltip: tooltipParts.join('\n'),
+                        },
+                    ),
+                );
+            } catch (err) {
+                log.error(
+                    `[Tree] Config provider ${provider.configName} failed for DPE ${dpId}/${elId}: ${err}`,
+                );
+            }
+        }
+
+        return configNodes;
+    }
+
+    /** Build attribute nodes for a config */
+    private getConfigAttributeChildren(configItem: DatabaseTreeItem): DatabaseTreeItem[] {
+        if (!configItem.configName) return [];
+
+        const elementRef = this.buildElementRef(configItem.dpId, configItem.elId, configItem.dptId);
+        if (!elementRef) return [];
+
+        const provider = this.configProviders.find((p) => p.configName === configItem.configName);
+        if (!provider) return [];
+
+        try {
+            const children = provider.getChildren(elementRef);
+            return children.map((attr) => this.attributeToTreeItem(attr, configItem));
+        } catch (err) {
+            log.error(`[Tree] Failed to get children for config ${configItem.configName}: ${err}`);
+            return [];
+        }
+    }
+
+    /** Convert an AttributeNodeModel to a DatabaseTreeItem */
+    private attributeToTreeItem(
+        attr: AttributeNodeModel,
+        parent: DatabaseTreeItem,
+    ): DatabaseTreeItem {
+        const tooltipParts = [attr.label];
+        if (attr.value.tooltip) {
+            tooltipParts.push(`Value: ${attr.value.tooltip}`);
+        } else {
+            tooltipParts.push(`Value: ${attr.value.display}`);
+        }
+        tooltipParts.push(`Source: ${attr.value.source}`);
+        tooltipParts.push('Read-only');
+        if (attr.value.stale) {
+            tooltipParts.push('⚠ Value may be stale');
+        }
+
+        return new DatabaseTreeItem(
+            attr.label,
+            vscode.TreeItemCollapsibleState.None,
+            'configAttribute',
+            parent.dptId,
+            parent.dpId,
+            parent.elId,
+            0,
+            this.db,
+            {
+                configName: parent.configName,
+                ctrlPath: attr.attributePath,
+                docsUrl: attr.docsUrl,
+                description: attr.value.display,
+                tooltip: tooltipParts.join('\n'),
+            },
+        );
+    }
+
+    /** Build an ElementRef from dp/el/dpt IDs */
+    private buildElementRef(dpId: number, elId: number, dptId: number): ElementRef | null {
+        if (!this.db) return null;
+
+        const dpName = this.db.getDatapointName(dpId);
+        if (!dpName) return null;
+
+        const element = this.db.getElementByDptAndElId(dptId, elId);
+        if (!element) return null;
+
+        const elementPath = this.db.getElementPath(dpId, elId);
+        const fullElementPath = elementPath ? `${dpName}.${elementPath}` : dpName;
+
+        return {
+            system: this.db.getSystemName(),
+            dpId,
+            elId,
+            dptId,
+            dpName,
+            elementName: element.canonical_name,
+            fullElementPath,
+        };
     }
 
     private buildElementChildren(
@@ -232,14 +429,16 @@ export class DptTreeProvider
             const hasChildren = elements.some(
                 (e) => e.parent_el_id === el.el_id && e.el_id !== el.el_id,
             );
-            const isExpandable =
-                hasChildren ||
-                el.datatype === OaElementType.STRUCT ||
-                el.datatype === OaElementType.REFERENCE;
+            const isStructOrRef =
+                el.datatype === OaElementType.STRUCT || el.datatype === OaElementType.REFERENCE;
+            const isExpandable = hasChildren || isStructOrRef;
+
+            // Leaf elements are always expandable now (to show configs)
+            const isLeaf = !isStructOrRef && !hasChildren;
 
             return new DatabaseTreeItem(
                 el.canonical_name,
-                isExpandable
+                isExpandable || isLeaf
                     ? vscode.TreeItemCollapsibleState.Collapsed
                     : vscode.TreeItemCollapsibleState.None,
                 'dpElement',

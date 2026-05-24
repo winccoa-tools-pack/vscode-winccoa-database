@@ -146,6 +146,30 @@ export async function activate(context: vscode.ExtensionContext) {
                 }
             }
         }),
+        vscode.commands.registerCommand('winccoa-database.copyCtrlPath', async (item) => {
+            log.info(
+                `Command: copyCtrlPath, item=${JSON.stringify(item?.label)}, itemType=${item?.itemType}`,
+            );
+            if (item && item.getCtrlPath) {
+                const ctrlPath = item.getCtrlPath();
+                if (ctrlPath) {
+                    await vscode.env.clipboard.writeText(ctrlPath);
+                    vscode.window.showInformationMessage(`Copied: ${ctrlPath}`);
+                    log.info(`Copied CTRL path to clipboard: ${ctrlPath}`);
+                } else {
+                    vscode.window.showWarningMessage('Could not determine CTRL path');
+                    log.warn('copyCtrlPath: getCtrlPath() returned undefined');
+                }
+            }
+        }),
+        vscode.commands.registerCommand('winccoa-database.openConfigDocs', (item) => {
+            log.info(
+                `Command: openConfigDocs, item=${JSON.stringify(item?.label)}, configName=${item?.configName}`,
+            );
+            if (item && item.docsUrl) {
+                vscode.env.openExternal(vscode.Uri.parse(item.docsUrl));
+            }
+        }),
         vscode.commands.registerCommand('winccoa-database.createDp', async (item) => {
             log.info(`Command: createDp, dptLabel=${item?.label}`);
             if (!item?.label) return;

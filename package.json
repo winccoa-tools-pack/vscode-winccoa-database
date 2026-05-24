@@ -107,6 +107,18 @@
                 "title": "Edit Datapoint Type",
                 "icon": "$(edit)",
                 "category": "WinCC OA Database"
+            },
+            {
+                "command": "winccoa-database.copyCtrlPath",
+                "title": "Copy CTRL Path",
+                "icon": "$(copy)",
+                "category": "WinCC OA Database"
+            },
+            {
+                "command": "winccoa-database.openConfigDocs",
+                "title": "Open Config Documentation",
+                "icon": "$(book)",
+                "category": "WinCC OA Database"
             }
         ],
         "menus": {
@@ -152,6 +164,36 @@
                     "command": "winccoa-database.copyDpName",
                     "when": "view == winccoa-database.dptView && viewItem == dpElement",
                     "group": "9_cutcopypaste@1"
+                },
+                {
+                    "command": "winccoa-database.openConfigEditor",
+                    "when": "view == winccoa-database.dptView && viewItem == config",
+                    "group": "1_edit"
+                },
+                {
+                    "command": "winccoa-database.copyCtrlPath",
+                    "when": "view == winccoa-database.dptView && viewItem == config",
+                    "group": "9_cutcopypaste@1"
+                },
+                {
+                    "command": "winccoa-database.openConfigDocs",
+                    "when": "view == winccoa-database.dptView && viewItem == config",
+                    "group": "z_docs"
+                },
+                {
+                    "command": "winccoa-database.copyCtrlPath",
+                    "when": "view == winccoa-database.dptView && viewItem == configAttribute",
+                    "group": "9_cutcopypaste@1"
+                },
+                {
+                    "command": "winccoa-database.openConfigDocs",
+                    "when": "view == winccoa-database.dptView && viewItem == configAttribute",
+                    "group": "z_docs"
+                },
+                {
+                    "command": "winccoa-database.openConfigEditor",
+                    "when": "view == winccoa-database.dptView && viewItem == configAttribute",
+                    "group": "1_edit"
                 }
             ],
             "commandPalette": [
@@ -173,6 +215,14 @@
                 },
                 {
                     "command": "winccoa-database.editDpType",
+                    "when": "false"
+                },
+                {
+                    "command": "winccoa-database.copyCtrlPath",
+                    "when": "false"
+                },
+                {
+                    "command": "winccoa-database.openConfigDocs",
                     "when": "false"
                 }
             ]

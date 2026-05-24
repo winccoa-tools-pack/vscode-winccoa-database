@@ -1,0 +1,1 @@
+export { RuntimeLinkProvider } from './base';
