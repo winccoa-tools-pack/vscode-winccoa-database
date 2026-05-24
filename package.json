@@ -1,259 +1,309 @@
 {
-    "name": "vscode-winccoa-database",
-    "displayName": "WinCC OA Database Explorer",
-    "description": "Browse and edit WinCC OA datapoint types and datapoints directly from VS Code",
-    "version": "0.2.0",
-    "publisher": "winccoa-tools-pack",
-    "author": "winccoa-tools-pack",
-    "license": "MIT",
-    "icon": "resources/icons/marketplace-icon.png",
-    "categories": [
-        "Other"
-    ],
-    "keywords": [
-        "wincc-oa",
-        "scada",
-        "hmi",
-        "siemens",
-        "etm",
-        "industrial",
-        "automation",
-        "database",
-        "datapoints"
-    ],
-    "private": false,
-    "repository": {
-        "type": "git",
-        "url": "https://github.com/winccoa-tools-pack/vscode-winccoa-database"
-    },
-    "bugs": {
-        "url": "https://github.com/winccoa-tools-pack/vscode-winccoa-database/issues"
-    },
-    "homepage": "https://github.com/winccoa-tools-pack/vscode-winccoa-database#readme",
-    "engines": {
-        "vscode": "^1.110.0"
-    },
-    "main": "./dist/extension.js",
-    "activationEvents": [
-        "onStartupFinished"
-    ],
-    "contributes": {
-        "viewsContainers": {
-            "activitybar": [
-                {
-                    "id": "winccoa-database",
-                    "title": "WinCC OA Database",
-                    "icon": "resources/icons/winccoa-database.svg"
-                }
-            ]
-        },
-        "views": {
-            "winccoa-database": [
-                {
-                    "id": "winccoa-database.dptView",
-                    "name": "Datapoint Types & Datapoints"
-                }
-            ]
-        },
-        "commands": [
-            {
-                "command": "winccoa-database.refreshDptTree",
-                "title": "Refresh",
-                "icon": "$(refresh)",
-                "category": "WinCC OA Database"
-            },
-            {
-                "command": "winccoa-database.openConfigEditor",
-                "title": "Open Config Editor",
-                "category": "WinCC OA Database"
-            },
-            {
-                "command": "winccoa-database.selectProject",
-                "title": "Select WinCC OA Project",
-                "category": "WinCC OA Database"
-            },
-            {
-                "command": "winccoa-database.copyDpName",
-                "title": "Copy DP Name",
-                "icon": "$(copy)",
-                "category": "WinCC OA Database"
-            },
-            {
-                "command": "winccoa-database.createDp",
-                "title": "New Datapoint",
-                "icon": "$(add)",
-                "category": "WinCC OA Database"
-            },
-            {
-                "command": "winccoa-database.deleteDp",
-                "title": "Delete Datapoint",
-                "icon": "$(trash)",
-                "category": "WinCC OA Database"
-            },
-            {
-                "command": "winccoa-database.createDpType",
-                "title": "New Datapoint Type",
-                "icon": "$(add)",
-                "category": "WinCC OA Database"
-            },
-            {
-                "command": "winccoa-database.deleteDpType",
-                "title": "Delete Datapoint Type",
-                "icon": "$(trash)",
-                "category": "WinCC OA Database"
-            },
-            {
-                "command": "winccoa-database.editDpType",
-                "title": "Edit Datapoint Type",
-                "icon": "$(edit)",
-                "category": "WinCC OA Database"
-            }
-        ],
-        "menus": {
-            "view/title": [
-                {
-                    "command": "winccoa-database.refreshDptTree",
-                    "when": "view == winccoa-database.dptView",
-                    "group": "navigation"
-                },
-                {
-                    "command": "winccoa-database.createDpType",
-                    "when": "view == winccoa-database.dptView",
-                    "group": "navigation"
-                }
-            ],
-            "view/item/context": [
-                {
-                    "command": "winccoa-database.createDp",
-                    "when": "view == winccoa-database.dptView && viewItem == dpt",
-                    "group": "1_edit"
-                },
-                {
-                    "command": "winccoa-database.editDpType",
-                    "when": "view == winccoa-database.dptView && viewItem == dpt",
-                    "group": "1_edit"
-                },
-                {
-                    "command": "winccoa-database.deleteDp",
-                    "when": "view == winccoa-database.dptView && viewItem == dp",
-                    "group": "2_delete"
-                },
-                {
-                    "command": "winccoa-database.deleteDpType",
-                    "when": "view == winccoa-database.dptView && viewItem == dpt",
-                    "group": "2_delete"
-                },
-                {
-                    "command": "winccoa-database.copyDpName",
-                    "when": "view == winccoa-database.dptView && viewItem == dp",
-                    "group": "9_cutcopypaste@1"
-                },
-                {
-                    "command": "winccoa-database.copyDpName",
-                    "when": "view == winccoa-database.dptView && viewItem == dpElement",
-                    "group": "9_cutcopypaste@1"
-                }
-            ],
-            "commandPalette": [
-                {
-                    "command": "winccoa-database.createDp",
-                    "when": "false"
-                },
-                {
-                    "command": "winccoa-database.deleteDp",
-                    "when": "false"
-                },
-                {
-                    "command": "winccoa-database.createDpType",
-                    "when": "false"
-                },
-                {
-                    "command": "winccoa-database.deleteDpType",
-                    "when": "false"
-                },
-                {
-                    "command": "winccoa-database.editDpType",
-                    "when": "false"
-                }
-            ]
-        },
-        "configuration": {
-            "title": "WinCC OA Database",
-            "properties": {
-                "winccoa-database.projectPath": {
-                    "type": "string",
-                    "default": "",
-                    "description": "Path to WinCC OA project directory. Leave empty for auto-detection."
-                }
-            }
+  "name": "vscode-winccoa-database",
+  "displayName": "WinCC OA Database Explorer",
+  "description": "Browse and edit WinCC OA datapoint types and datapoints directly from VS Code",
+  "version": "0.2.0",
+  "publisher": "winccoa-tools-pack",
+  "author": "winccoa-tools-pack",
+  "license": "MIT",
+  "icon": "resources/icons/marketplace-icon.png",
+  "categories": [
+    "Other"
+  ],
+  "keywords": [
+    "wincc-oa",
+    "scada",
+    "hmi",
+    "siemens",
+    "etm",
+    "industrial",
+    "automation",
+    "database",
+    "datapoints"
+  ],
+  "private": false,
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/winccoa-tools-pack/vscode-winccoa-database"
+  },
+  "bugs": {
+    "url": "https://github.com/winccoa-tools-pack/vscode-winccoa-database/issues"
+  },
+  "homepage": "https://github.com/winccoa-tools-pack/vscode-winccoa-database#readme",
+  "engines": {
+    "vscode": "^1.110.0"
+  },
+  "main": "./dist/extension.js",
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "winccoa-database",
+          "title": "WinCC OA Database",
+          "icon": "resources/icons/winccoa-database.svg"
         }
+      ]
     },
-    "extensionDependencies": [],
-    "devDependencies": {
-        "@electron/rebuild": "^4.0.4",
-        "@eslint/js": "^9.39.2",
-        "@types/better-sqlite3": "^7.6.12",
-        "@types/mocha": "^10.0.10",
-        "@types/node": "^25.6.0",
-        "@types/vscode": "^1.118.0",
-        "@vscode/test-cli": "^0.0.12",
-        "@vscode/test-electron": "^2.5.2",
-        "@vscode/vsce": "^3.9.1",
-        "copyfiles": "^2.4.1",
-        "eslint": "^10.3.0",
-        "glob": "^13.0.0",
-        "markdownlint-cli": "^0.48.0",
-        "mocha": "^11.7.5",
-        "prettier": "^3.8.3",
-        "source-map": "^0.8.0-beta.0",
-        "ts-loader": "^9.5.7",
-        "tsx": "^4.21.0",
-        "typescript": "^6.0.3",
-        "typescript-eslint": "^8.59.1",
-        "webpack": "^5.106.2",
-        "webpack-cli": "^7.0.2"
+    "views": {
+      "winccoa-database": [
+        {
+          "id": "winccoa-database.dptView",
+          "name": "Datapoint Types & Datapoints"
+        }
+      ]
     },
-    "scripts": {
-        "vscode:prepublish": "npm run compile",
-        "rebuild": "electron-rebuild -v 39.3.0",
-        "rebuild:node": "cd node_modules/better-sqlite3 && node-gyp rebuild --release",
-        "collect:node": "node scripts/collect-prebuilds.js --node",
-        "collect:electron": "node scripts/collect-prebuilds.js --electron",
-        "prebuilds": "npm run rebuild:node && npm run collect:node && npm run rebuild && npm run collect:electron",
-        "compile": "webpack --mode production && npm run copy-fixtures",
-        "compile:tests": "tsc -p tsconfig.test.json",
-        "copy-fixtures": "copyfiles -u 1 \"src/test/fixtures/**/*\" dist/",
-        "build": "npm run compile",
-        "start": "code --extensionDevelopmentPath=.",
-        "start:insiders": "code-insiders --extensionDevelopmentPath=.",
-        "dev": "npm run watch",
-        "watch": "webpack --mode development --watch",
-        "package": "npm run prebuilds && vsce package",
-        "pretest": "npm run test:fixtures && npm run compile && npm run compile:tests && npm run lint",
-        "test:fixtures": "node --experimental-sqlite scripts/create-test-fixtures.js",
-        "lint": "eslint \"src/**/*.ts\"",
-        "lint:fix": "eslint \"src/**/*.ts\" --fix",
-        "lint:md": "markdownlint \"**/*.md\" --ignore node_modules",
-        "lint:md:fix": "markdownlint \"**/*.md\" --ignore node_modules --fix",
-        "format": "prettier --write \"**/*.{ts,js,json,md}\"",
-        "format:check": "prettier --check \"**/*.{ts,js,json,md}\"",
-        "test": "vscode-test",
-        "test:unit": "vscode-test --label unitTests",
-        "test:integration": "vscode-test --label integrationTests",
-        "test:unit:coverage": "npm run compile:tests && npm run clean:coverage:unitTests && vscode-test --label unitTests --coverage --coverage-output coverage/unitTests --coverage-reporter lcov --coverage-reporter html --coverage-reporter json-summary --coverage-reporter text-summary",
-        "test:integration:coverage": "npm run compile:tests && npm run clean:coverage:integrationTests && vscode-test --label integrationTests --coverage --coverage-output coverage/integrationTests --coverage-reporter lcov --coverage-reporter html --coverage-reporter json-summary --coverage-reporter text-summary",
-        "test:coverage": "npm run test:unit:coverage && npm run test:integration:coverage",
-        "clean:coverage": "node -e \"require('fs').rmSync('coverage',{ recursive:true, force:true, maxRetries:10, retryDelay:200 })\"",
-        "clean:coverage:integrationTests": "node -e \"require('fs').rmSync('coverage/integrationTests',{ recursive:true, force:true, maxRetries:10, retryDelay:200 })\"",
-        "clean:coverage:unitTests": "node -e \"require('fs').rmSync('coverage/unitTests',{ recursive:true, force:true, maxRetries:10, retryDelay:200 })\"",
-        "ci:integration": "npm ci && npm run compile && npm run test:integration",
-        "style-check": "npm run format:check && npm run lint"
+    "commands": [
+      {
+        "command": "winccoa-database.refreshDptTree",
+        "title": "Refresh",
+        "icon": "$(refresh)",
+        "category": "WinCC OA Database"
+      },
+      {
+        "command": "winccoa-database.openConfigEditor",
+        "title": "Open Config Editor",
+        "category": "WinCC OA Database"
+      },
+      {
+        "command": "winccoa-database.selectProject",
+        "title": "Select WinCC OA Project",
+        "category": "WinCC OA Database"
+      },
+      {
+        "command": "winccoa-database.copyDpName",
+        "title": "Copy DP Name",
+        "icon": "$(copy)",
+        "category": "WinCC OA Database"
+      },
+      {
+        "command": "winccoa-database.createDp",
+        "title": "New Datapoint",
+        "icon": "$(add)",
+        "category": "WinCC OA Database"
+      },
+      {
+        "command": "winccoa-database.deleteDp",
+        "title": "Delete Datapoint",
+        "icon": "$(trash)",
+        "category": "WinCC OA Database"
+      },
+      {
+        "command": "winccoa-database.createDpType",
+        "title": "New Datapoint Type",
+        "icon": "$(add)",
+        "category": "WinCC OA Database"
+      },
+      {
+        "command": "winccoa-database.deleteDpType",
+        "title": "Delete Datapoint Type",
+        "icon": "$(trash)",
+        "category": "WinCC OA Database"
+      },
+      {
+        "command": "winccoa-database.editDpType",
+        "title": "Edit Datapoint Type",
+        "icon": "$(edit)",
+        "category": "WinCC OA Database"
+      },
+      {
+        "command": "winccoa-database.copyCtrlPath",
+        "title": "Copy CTRL Path",
+        "icon": "$(copy)",
+        "category": "WinCC OA Database"
+      },
+      {
+        "command": "winccoa-database.openConfigDocs",
+        "title": "Open Config Documentation",
+        "icon": "$(book)",
+        "category": "WinCC OA Database"
+      }
+    ],
+    "menus": {
+      "view/title": [
+        {
+          "command": "winccoa-database.refreshDptTree",
+          "when": "view == winccoa-database.dptView",
+          "group": "navigation"
+        },
+        {
+          "command": "winccoa-database.createDpType",
+          "when": "view == winccoa-database.dptView",
+          "group": "navigation"
+        }
+      ],
+      "view/item/context": [
+        {
+          "command": "winccoa-database.createDp",
+          "when": "view == winccoa-database.dptView && viewItem == dpt",
+          "group": "1_edit"
+        },
+        {
+          "command": "winccoa-database.editDpType",
+          "when": "view == winccoa-database.dptView && viewItem == dpt",
+          "group": "1_edit"
+        },
+        {
+          "command": "winccoa-database.deleteDp",
+          "when": "view == winccoa-database.dptView && viewItem == dp",
+          "group": "2_delete"
+        },
+        {
+          "command": "winccoa-database.deleteDpType",
+          "when": "view == winccoa-database.dptView && viewItem == dpt",
+          "group": "2_delete"
+        },
+        {
+          "command": "winccoa-database.copyDpName",
+          "when": "view == winccoa-database.dptView && viewItem == dp",
+          "group": "9_cutcopypaste@1"
+        },
+        {
+          "command": "winccoa-database.copyDpName",
+          "when": "view == winccoa-database.dptView && viewItem == dpElement",
+          "group": "9_cutcopypaste@1"
+        },
+        {
+          "command": "winccoa-database.openConfigEditor",
+          "when": "view == winccoa-database.dptView && viewItem == config",
+          "group": "1_edit"
+        },
+        {
+          "command": "winccoa-database.copyCtrlPath",
+          "when": "view == winccoa-database.dptView && viewItem == config",
+          "group": "9_cutcopypaste@1"
+        },
+        {
+          "command": "winccoa-database.openConfigDocs",
+          "when": "view == winccoa-database.dptView && viewItem == config",
+          "group": "z_docs"
+        },
+        {
+          "command": "winccoa-database.copyCtrlPath",
+          "when": "view == winccoa-database.dptView && viewItem == configAttribute",
+          "group": "9_cutcopypaste@1"
+        },
+        {
+          "command": "winccoa-database.openConfigDocs",
+          "when": "view == winccoa-database.dptView && viewItem == configAttribute",
+          "group": "z_docs"
+        },
+        {
+          "command": "winccoa-database.openConfigEditor",
+          "when": "view == winccoa-database.dptView && viewItem == configAttribute",
+          "group": "1_edit"
+        }
+      ],
+      "commandPalette": [
+        {
+          "command": "winccoa-database.createDp",
+          "when": "false"
+        },
+        {
+          "command": "winccoa-database.deleteDp",
+          "when": "false"
+        },
+        {
+          "command": "winccoa-database.createDpType",
+          "when": "false"
+        },
+        {
+          "command": "winccoa-database.deleteDpType",
+          "when": "false"
+        },
+        {
+          "command": "winccoa-database.editDpType",
+          "when": "false"
+        },
+        {
+          "command": "winccoa-database.copyCtrlPath",
+          "when": "false"
+        },
+        {
+          "command": "winccoa-database.openConfigDocs",
+          "when": "false"
+        }
+      ]
     },
-    "dependencies": {
-        "better-sqlite3": "^12.9.0"
-    },
-    "overrides": {
-        "diff": "^8.0.4",
-        "serialize-javascript": "^7.0.5"
+    "configuration": {
+      "title": "WinCC OA Database",
+      "properties": {
+        "winccoa-database.projectPath": {
+          "type": "string",
+          "default": "",
+          "description": "Path to WinCC OA project directory. Leave empty for auto-detection."
+        }
+      }
     }
+  },
+  "extensionDependencies": [],
+  "devDependencies": {
+    "@electron/rebuild": "^4.0.4",
+    "@eslint/js": "^9.39.2",
+    "@types/better-sqlite3": "^7.6.12",
+    "@types/mocha": "^10.0.10",
+    "@types/node": "^25.6.0",
+    "@types/vscode": "^1.118.0",
+    "@vscode/test-cli": "^0.0.12",
+    "@vscode/test-electron": "^2.5.2",
+    "@vscode/vsce": "^3.9.1",
+    "copyfiles": "^2.4.1",
+    "eslint": "^10.3.0",
+    "glob": "^13.0.0",
+    "markdownlint-cli": "^0.48.0",
+    "mocha": "^11.7.5",
+    "prettier": "^3.8.3",
+    "source-map": "^0.8.0-beta.0",
+    "ts-loader": "^9.5.7",
+    "tsx": "^4.21.0",
+    "typescript": "^6.0.3",
+    "typescript-eslint": "^8.59.1",
+    "webpack": "^5.106.2",
+    "webpack-cli": "^7.0.2"
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "rebuild": "electron-rebuild -v 39.3.0",
+    "rebuild:node": "cd node_modules/better-sqlite3 && node-gyp rebuild --release",
+    "collect:node": "node scripts/collect-prebuilds.js --node",
+    "collect:electron": "node scripts/collect-prebuilds.js --electron",
+    "prebuilds": "npm run rebuild:node && npm run collect:node && npm run rebuild && npm run collect:electron",
+    "compile": "webpack --mode production && npm run copy-fixtures",
+    "compile:tests": "tsc -p tsconfig.test.json",
+    "copy-fixtures": "copyfiles -u 1 \"src/test/fixtures/**/*\" dist/",
+    "build": "npm run compile",
+    "start": "code --extensionDevelopmentPath=.",
+    "start:insiders": "code-insiders --extensionDevelopmentPath=.",
+    "dev": "npm run watch",
+    "watch": "webpack --mode development --watch",
+    "package": "npm run prebuilds && vsce package",
+    "pretest": "npm run test:fixtures && npm run compile && npm run compile:tests && npm run lint",
+    "test:fixtures": "node --experimental-sqlite scripts/create-test-fixtures.js",
+    "lint": "eslint \"src/**/*.ts\"",
+    "lint:fix": "eslint \"src/**/*.ts\" --fix",
+    "lint:md": "markdownlint \"**/*.md\" --ignore node_modules",
+    "lint:md:fix": "markdownlint \"**/*.md\" --ignore node_modules --fix",
+    "format": "prettier --write \"**/*.{ts,js,json,md}\"",
+    "format:check": "prettier --check \"**/*.{ts,js,json,md}\"",
+    "test": "vscode-test",
+    "test:unit": "vscode-test --label unitTests",
+    "test:integration": "vscode-test --label integrationTests",
+    "test:unit:coverage": "npm run compile:tests && npm run clean:coverage:unitTests && vscode-test --label unitTests --coverage --coverage-output coverage/unitTests --coverage-reporter lcov --coverage-reporter html --coverage-reporter json-summary --coverage-reporter text-summary",
+    "test:integration:coverage": "npm run compile:tests && npm run clean:coverage:integrationTests && vscode-test --label integrationTests --coverage --coverage-output coverage/integrationTests --coverage-reporter lcov --coverage-reporter html --coverage-reporter json-summary --coverage-reporter text-summary",
+    "test:coverage": "npm run test:unit:coverage && npm run test:integration:coverage",
+    "clean:coverage": "node -e \"require('fs').rmSync('coverage',{ recursive:true, force:true, maxRetries:10, retryDelay:200 })\"",
+    "clean:coverage:integrationTests": "node -e \"require('fs').rmSync('coverage/integrationTests',{ recursive:true, force:true, maxRetries:10, retryDelay:200 })\"",
+    "clean:coverage:unitTests": "node -e \"require('fs').rmSync('coverage/unitTests',{ recursive:true, force:true, maxRetries:10, retryDelay:200 })\"",
+    "ci:integration": "npm ci && npm run compile && npm run test:integration",
+    "style-check": "npm run format:check && npm run lint"
+  },
+  "dependencies": {
+    "better-sqlite3": "^12.9.0"
+  },
+  "overrides": {
+    "diff": "^8.0.4",
+    "serialize-javascript": "^7.0.5"
+  }
 }
