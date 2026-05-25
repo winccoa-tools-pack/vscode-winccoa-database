@@ -58,6 +58,18 @@ if (
 
 fs.mkdirSync(PREBUILDS_DIR, { recursive: true });
 
+// Electron major -> ABI mapping (update when targeting new Electron versions)
+const ELECTRON_ABI_MAP = {
+    32: '128',
+    33: '130',
+    34: '132',
+    35: '133',
+    36: '135',
+    37: '136',
+    38: '139',
+    39: '140',
+};
+
 // ── Download prebuilds from GitHub releases ────────────────────────
 if (mode === '--download-node') {
     const versions = args.slice(1);
@@ -126,18 +138,7 @@ if (mode === '--download-electron') {
     }
     const electronMajor = parseInt(electronVersion.split('.')[0], 10);
 
-    // Electron major -> ABI mapping
-    const electronAbiMap = {
-        32: '128',
-        33: '130',
-        34: '132',
-        35: '133',
-        36: '135',
-        37: '136',
-        38: '139',
-        39: '140',
-    };
-    const targetAbi = electronAbiMap[electronMajor];
+    const targetAbi = ELECTRON_ABI_MAP[electronMajor];
     if (!targetAbi) {
         console.error(`Unknown Electron major version: ${electronMajor}`);
         process.exit(1);
@@ -171,6 +172,14 @@ if (mode === '--download-electron') {
     fs.copyFileSync(SOURCE, dest);
     console.log(`Collected: ${dest}`);
 
+    // Clean up nested node_modules from prebuild-install before ABI verification
+    // so the cleanup always runs regardless of whether verification succeeds or fails.
+    const nestedModules = path.join(ROOT, 'node_modules', 'better-sqlite3', 'node_modules');
+    if (fs.existsSync(nestedModules)) {
+        fs.rmSync(nestedModules, { recursive: true, force: true });
+        console.log('Cleaned up nested node_modules from prebuild-install.');
+    }
+
     // Verify ABI
     const { spawnSync } = require('child_process');
     const result = spawnSync(process.execPath, ['-e', `require(${JSON.stringify(dest)})`], {
@@ -192,13 +201,6 @@ if (mode === '--download-electron') {
             `ABI mismatch! Binary loaded under Node.js ${process.version} — expected Electron ABI ${targetAbi}.`,
         );
         process.exit(1);
-    }
-
-    // Clean up nested node_modules from prebuild-install
-    const nestedModules = path.join(ROOT, 'node_modules', 'better-sqlite3', 'node_modules');
-    if (fs.existsSync(nestedModules)) {
-        fs.rmSync(nestedModules, { recursive: true, force: true });
-        console.log('Cleaned up nested node_modules from prebuild-install.');
     }
 
     process.exit(0);
@@ -228,18 +230,7 @@ if (mode === '--node') {
     const electronVersion = electronVersionMatch[1];
     const electronMajor = parseInt(electronVersion.split('.')[0], 10);
 
-    // Electron major -> ABI mapping (update when targeting new Electron versions)
-    const electronAbiMap = {
-        32: '128',
-        33: '130',
-        34: '132',
-        35: '133',
-        36: '135',
-        37: '136',
-        38: '139',
-        39: '140',
-    };
-    targetAbi = electronAbiMap[electronMajor];
+    targetAbi = ELECTRON_ABI_MAP[electronMajor];
     if (!targetAbi) {
         console.error(`Unknown Electron major version: ${electronMajor}`);
         process.exit(1);
