@@ -124,9 +124,7 @@ info:
 	@echo "Platform:   $(PLATFORM)-$(ARCH)"
 	@echo "Node ABI:   $(NODE_ABI)"
 	@echo "Prebuilds:  $(PREBUILDS_DIR)/$(PLATFORM)-$(ARCH)/"
-	@test -d "$(PREBUILDS_DIR)/$(PLATFORM)-$(ARCH)" \
-		&& ls -1 $(PREBUILDS_DIR)/$(PLATFORM)-$(ARCH)/ \
-		|| echo "  (none — run 'make prebuilds')"
+	@node -e "const fs=require('fs'),path=require('path');const d='$(PREBUILDS_DIR)/$(PLATFORM)-$(ARCH)';if(fs.existsSync(d)){for(const e of fs.readdirSync(d))console.log(' '+path.join(d,e));}else{console.log('  (none \u2014 run \'make prebuilds\')')}"
 
 # ── Help ──────────────────────────────────────────────────────────────
 help:

@@ -430,8 +430,7 @@ export class DptTreeProvider
                 (e) => e.parent_el_id === el.el_id && e.el_id !== el.el_id,
             );
             const isStructOrRef =
-                el.datatype === OaElementType.STRUCT ||
-                el.datatype === OaElementType.REFERENCE;
+                el.datatype === OaElementType.STRUCT || el.datatype === OaElementType.REFERENCE;
             const hasStructureChildren = hasChildren || isStructOrRef;
 
             // Leaf elements are always expandable now (to show configs)

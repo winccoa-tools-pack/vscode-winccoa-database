@@ -185,7 +185,9 @@ suite('Config provider unit tests', () => {
             } as unknown as SqliteClient;
             const provider = new PvRangeProvider(mockDb);
             const valuesByLabel = new Map(
-                provider.getChildren(mockElementRef).map((child) => [child.label, child.value.display]),
+                provider
+                    .getChildren(mockElementRef)
+                    .map((child) => [child.label, child.value.display]),
             );
 
             assert.strictEqual(valuesByLabel.get('_incl_min'), 'Yes');
