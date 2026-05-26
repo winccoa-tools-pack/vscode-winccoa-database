@@ -251,7 +251,7 @@
         "style-check": "npm run format:check && npm run lint"
     },
     "dependencies": {
-        "better-sqlite3": "^12.9.0"
+        "better-sqlite3": "^12.10.0"
     },
     "overrides": {
         "diff": "^8.0.4",
