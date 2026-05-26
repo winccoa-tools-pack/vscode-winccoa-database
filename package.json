@@ -210,7 +210,7 @@
         "ts-loader": "^9.5.7",
         "tsx": "^4.22.3",
         "typescript": "^6.0.3",
-        "typescript-eslint": "^8.59.1",
+        "typescript-eslint": "^8.60.0",
         "webpack": "^5.107.2",
         "webpack-cli": "^7.0.2"
     },
