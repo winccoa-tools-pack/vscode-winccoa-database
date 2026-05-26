@@ -63,6 +63,11 @@
                 "category": "WinCC OA Database"
             },
             {
+                "command": "winccoa-database.toggleInternalDpts",
+                "title": "Toggle Internal Datapoint Visibility",
+                "category": "WinCC OA Database"
+            },
+            {
                 "command": "winccoa-database.openConfigEditor",
                 "title": "Open Config Editor",
                 "category": "WinCC OA Database"
@@ -218,11 +223,7 @@
                     "when": "false"
                 },
                 {
-                    "command": "winccoa-database.copyCtrlPath",
-                    "when": "false"
-                },
-                {
-                    "command": "winccoa-database.openConfigDocs",
+                    "command": "winccoa-database.toggleInternalDpts",
                     "when": "false"
                 }
             ]

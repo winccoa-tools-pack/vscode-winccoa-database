@@ -144,6 +144,9 @@ suite('DptTreeProvider Unit Tests', () => {
                 },
             } as unknown as SqliteClient;
 
+        });
+
+        setup(() => {
             provider = new DptTreeProvider(mockDb);
         });
 
@@ -247,6 +250,126 @@ suite('DptTreeProvider Unit Tests', () => {
             const textData = dataTransfer.get('text/plain');
             assert.ok(textData, 'text/plain should be set');
             assert.strictEqual(textData?.value, 'System1:TestDP', 'should use first item only');
+        });
+    });
+
+    suite('DptTreeProvider internal visibility', () => {
+        let provider: DptTreeProvider;
+        let mockDb: SqliteClient;
+
+        suiteSetup(() => {
+            mockDb = {
+                isOpen: true,
+                getAllDpTypes: () => [
+                    {
+                        dpt_id: 1,
+                        canonical_name: 'ExampleDPT',
+                        next_free_el_id: 3,
+                        modification_time: 0,
+                    },
+                    {
+                        dpt_id: 2,
+                        canonical_name: '_InternalDPT',
+                        next_free_el_id: 3,
+                        modification_time: 0,
+                    },
+                ],
+                getDatapointsByDptId: (dptId: number) => {
+                    if (dptId !== 1) return [];
+                    return [
+                        {
+                            dp_id: 100,
+                            dpt_id: 1,
+                            canonical_name: 'System1:VisibleDp',
+                            modification_time: 0,
+                        },
+                        {
+                            dp_id: 101,
+                            dpt_id: 1,
+                            canonical_name: 'System1:_InternalDp',
+                            modification_time: 0,
+                        },
+                    ];
+                },
+                getElementsByDptId: () => [
+                    {
+                        el_id: 1,
+                        dpt_id: 1,
+                        position_in_type: 0,
+                        parent_el_id: 0,
+                        datatype: 0,
+                        referenced_type: 0,
+                        source_dpt_id: 0,
+                        source_el_id: 0,
+                        canonical_name: 'ExampleDPT',
+                        modification_time: 0,
+                    },
+                    {
+                        el_id: 2,
+                        dpt_id: 1,
+                        position_in_type: 1,
+                        parent_el_id: 1,
+                        datatype: 23,
+                        referenced_type: 0,
+                        source_dpt_id: 0,
+                        source_el_id: 0,
+                        canonical_name: 'value',
+                        modification_time: 0,
+                    },
+                ],
+            } as unknown as SqliteClient;
+
+            provider = new DptTreeProvider(mockDb);
+        });
+
+        test('should prepend a toggle item and hide internal DPTs by default', () => {
+            const rootChildren = provider.getChildren();
+
+            assert.strictEqual(rootChildren[0].itemType, 'toggleInternal');
+            assert.strictEqual(rootChildren[0].label, '☐ Show internal DPTs');
+            assert.deepStrictEqual(
+                rootChildren.slice(1).map((item) => item.label),
+                ['ExampleDPT'],
+            );
+        });
+
+        test('should show internal DPTs after toggling visibility', () => {
+            provider.toggleShowInternal();
+
+            const rootChildren = provider.getChildren();
+
+            assert.strictEqual(rootChildren[0].label, '☑ Show internal DPTs');
+            assert.deepStrictEqual(
+                rootChildren.slice(1).map((item) => item.label),
+                ['ExampleDPT', '_InternalDPT'],
+            );
+        });
+
+        test('should hide internal datapoints by default and reveal them when toggled', () => {
+            const dptItem = new DatabaseTreeItem(
+                'ExampleDPT',
+                vscode.TreeItemCollapsibleState.Collapsed,
+                'dpt',
+                1,
+                0,
+                0,
+                0,
+                mockDb,
+            );
+
+            provider.setShowInternal(false);
+            const hiddenByDefault = provider.getChildren(dptItem);
+            assert.deepStrictEqual(
+                hiddenByDefault.map((item) => item.label),
+                ['System1:VisibleDp'],
+            );
+
+            provider.toggleShowInternal();
+            const shownWhenEnabled = provider.getChildren(dptItem);
+            assert.deepStrictEqual(
+                shownWhenEnabled.map((item) => item.label),
+                ['System1:VisibleDp', 'System1:_InternalDp'],
+            );
         });
     });
 

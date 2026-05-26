@@ -121,6 +121,10 @@ export async function activate(context: vscode.ExtensionContext) {
             log.info('Command: refreshDptTree');
             dptTreeProvider.refresh();
         }),
+        vscode.commands.registerCommand('winccoa-database.toggleInternalDpts', () => {
+            log.info('Command: toggleInternalDpts');
+            dptTreeProvider.toggleShowInternal();
+        }),
         vscode.commands.registerCommand('winccoa-database.selectProject', () => selectProject()),
         vscode.commands.registerCommand('winccoa-database.openConfigEditor', (item) => {
             log.info(

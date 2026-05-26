@@ -7,7 +7,8 @@ import { createConfigProviders } from '../config/providers/index';
 
 const log = vscode.window.createOutputChannel('WinCC OA Database', { log: true });
 
-type ItemType = 'dpt' | 'dp' | 'dpElement' | 'config' | 'configAttribute';
+type ItemType = 'dpt' | 'dp' | 'dpElement';
+type ItemType = 'toggleInternal' | 'dpt' | 'dp' | 'dpElement' | 'config' | 'configAttribute';
 
 export class DatabaseTreeItem extends vscode.TreeItem {
     /** For config/configAttribute items: the config name (e.g. '_address') */
@@ -41,6 +42,15 @@ export class DatabaseTreeItem extends vscode.TreeItem {
         this.docsUrl = options?.docsUrl;
 
         switch (itemType) {
+            case 'toggleInternal':
+                this.contextValue = 'toggleInternal';
+                this.command = {
+                    command: 'winccoa-database.toggleInternalDpts',
+                    title: 'Toggle Internal Datapoint Visibility',
+                };
+                this.tooltip =
+                    'Show or hide datapoint types and datapoints whose names start with "_"';
+                break;
             case 'dpt':
                 this.contextValue = 'dpt';
                 this.iconPath = new vscode.ThemeIcon('symbol-class');
@@ -143,6 +153,10 @@ export class DptTreeProvider
         this.refresh();
     }
 
+    toggleShowInternal(): void {
+        this.setShowInternal(!this.showInternal);
+    }
+
     getTreeItem(element: DatabaseTreeItem): vscode.TreeItem {
         return element;
     }
@@ -170,6 +184,8 @@ export class DptTreeProvider
             case 'config':
                 return this.getConfigAttributeChildren(element);
             case 'configAttribute':
+                return [];
+            case 'toggleInternal':
                 return [];
             default:
                 return [];
@@ -201,32 +217,49 @@ export class DptTreeProvider
     private getRootChildren(): DatabaseTreeItem[] {
         const dpTypes = this.db.getAllDpTypes();
         log.info(`[Tree] Root: ${dpTypes.length} DPTs total`);
-        const filtered = dpTypes.filter(
-            (dpt) => this.showInternal || !dpt.canonical_name.startsWith('_'),
-        );
+        const filtered = dpTypes.filter((dpt) => this.showInternal || !this.isInternalName(dpt.canonical_name));
         log.info(`[Tree] Root: ${filtered.length} DPTs after filter`);
 
-        return filtered.map(
-            (dpt) =>
-                new DatabaseTreeItem(
-                    dpt.canonical_name,
-                    vscode.TreeItemCollapsibleState.Collapsed,
-                    'dpt',
-                    dpt.dpt_id,
-                    0,
-                    0,
-                    0,
-                    this.db,
-                ),
+        const toggleItem = new DatabaseTreeItem(
+            `${this.showInternal ? '☑' : '☐'} Show internal DPTs`,
+            vscode.TreeItemCollapsibleState.None,
+            'toggleInternal',
+            0,
+            0,
+            0,
+            0,
+            this.db,
         );
+        toggleItem.description = this.showInternal ? 'on' : 'off';
+
+        return [
+            toggleItem,
+            ...filtered.map(
+                (dpt) =>
+                    new DatabaseTreeItem(
+                        dpt.canonical_name,
+                        vscode.TreeItemCollapsibleState.Collapsed,
+                        'dpt',
+                        dpt.dpt_id,
+                        0,
+                        0,
+                        0,
+                        this.db,
+                    ),
+            ),
+        ];
     }
 
     /** DPT expanded: show DP instances of this type */
     private getDptChildren(dptId: number): DatabaseTreeItem[] {
         const datapoints = this.db.getDatapointsByDptId(dptId);
         log.info(`[Tree] DPT ${dptId}: ${datapoints.length} datapoints`);
+        const filtered = datapoints.filter(
+            (dp) => this.showInternal || !this.isInternalName(dp.canonical_name),
+        );
+        log.info(`[Tree] DPT ${dptId}: ${filtered.length} datapoints after filter`);
 
-        return datapoints.map((dp) => {
+        return filtered.map((dp) => {
             const elements = this.db.getElementsByDptId(dp.dpt_id);
             const hasChildren = elements.length > 1;
             return new DatabaseTreeItem(
@@ -242,6 +275,10 @@ export class DptTreeProvider
                 this.db,
             );
         });
+    }
+
+    private isInternalName(name: string): boolean {
+        return name.split(':').at(-1)?.startsWith('_') ?? false;
     }
 
     /** DP expanded: show element tree (skip root element, show its children) */
