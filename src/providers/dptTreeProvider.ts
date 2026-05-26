@@ -153,6 +153,7 @@ export class DptTreeProvider
         this.refresh();
     }
 
+    /** Toggle internal DPT/DP visibility and refresh the tree. */
     toggleShowInternal(): void {
         this.setShowInternal(!this.showInternal);
     }
@@ -217,7 +218,9 @@ export class DptTreeProvider
     private getRootChildren(): DatabaseTreeItem[] {
         const dpTypes = this.db.getAllDpTypes();
         log.info(`[Tree] Root: ${dpTypes.length} DPTs total`);
-        const filtered = dpTypes.filter((dpt) => this.showInternal || !this.isInternalName(dpt.canonical_name));
+        const filtered = dpTypes.filter(
+            (dpt) => this.showInternal || !this.isInternalName(dpt.canonical_name),
+        );
         log.info(`[Tree] Root: ${filtered.length} DPTs after filter`);
 
         const toggleItem = new DatabaseTreeItem(
@@ -277,6 +280,7 @@ export class DptTreeProvider
         });
     }
 
+    /** Internal DPT/DP names have "_" as the first character after any optional system prefix. */
     private isInternalName(name: string): boolean {
         return name.split(':').at(-1)?.startsWith('_') ?? false;
     }

@@ -318,7 +318,9 @@ suite('DptTreeProvider Unit Tests', () => {
                     },
                 ],
             } as unknown as SqliteClient;
+        });
 
+        setup(() => {
             provider = new DptTreeProvider(mockDb);
         });
 
