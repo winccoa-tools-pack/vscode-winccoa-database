@@ -725,9 +725,7 @@ async function editConfigAttribute(item: DatabaseTreeItem | undefined): Promise<
     const result = await mcpClient.dpSet(item.ctrlPath, nextValue);
     if (result.success) {
         vscode.window.showInformationMessage(`Updated ${item.ctrlPath}`);
-        setTimeout(() => {
-            dptTreeProvider.refresh();
-        }, 500);
+        scheduleTreeRefreshAfterConfigWrite();
     } else if (result.error?.includes('not reachable')) {
         await promptMcpSetup();
     } else {
@@ -757,7 +755,7 @@ async function promptConfigAttributeValue(
         ];
         const choice = await vscode.window.showQuickPick(items, {
             title: `Set ${label}`,
-            placeHolder: `Current value: ${formatEditInputValue(currentValue) || 'empty'}`,
+            placeHolder: formatConfigAttributePlaceholder(currentValue),
         });
         return choice?.value;
     }
@@ -773,7 +771,7 @@ async function promptConfigAttributeValue(
             })) ?? [];
         const choice = await vscode.window.showQuickPick(items, {
             title: `Set ${label}`,
-            placeHolder: `Current value: ${formatEditInputValue(currentValue) || 'empty'}`,
+            placeHolder: formatConfigAttributePlaceholder(currentValue),
         });
         return choice?.value;
     }
@@ -789,4 +787,16 @@ async function promptConfigAttributeValue(
         return undefined;
     }
     return parseEditInputValue(editSpec, input).value;
+}
+
+function formatConfigAttributePlaceholder(currentValue: unknown): string {
+    return `Current value: ${formatEditInputValue(currentValue) || 'empty'}`;
+}
+
+function scheduleTreeRefreshAfterConfigWrite(): void {
+    for (const delay of [500, 1500, 3000]) {
+        setTimeout(() => {
+            dptTreeProvider.refresh();
+        }, delay);
+    }
 }

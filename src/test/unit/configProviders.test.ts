@@ -73,7 +73,7 @@ const archiveConfig = {
     modification_time: 0,
 };
 
-function assertFlatProviderChildren(
+function assertEditableFlatProviderChildren(
     children: Array<{
         editable: boolean;
         editSpec?: unknown;
@@ -148,7 +148,7 @@ suite('Config provider unit tests', () => {
                     '_response_mode',
                 ],
             );
-            assertFlatProviderChildren(children);
+            assertEditableFlatProviderChildren(children);
         });
 
         test('getChildren() returns an empty array when the config does not exist', () => {
@@ -182,7 +182,7 @@ suite('Config provider unit tests', () => {
             const children = provider.getChildren(mockElementRef);
 
             assert.strictEqual(children.length, 7);
-            assertFlatProviderChildren(children);
+            assertEditableFlatProviderChildren(children);
         });
 
         test('formats boolean attributes as Yes and No', () => {
@@ -224,7 +224,7 @@ suite('Config provider unit tests', () => {
             const children = provider.getChildren(mockElementRef);
 
             assert.strictEqual(children.length, 3);
-            assertFlatProviderChildren(children);
+            assertEditableFlatProviderChildren(children);
         });
 
         test('formats the type attribute with the enum name', () => {
@@ -263,7 +263,7 @@ suite('Config provider unit tests', () => {
 
             assert.strictEqual(children.length, 1);
             assert.strictEqual(children[0].label, '_driver_number');
-            assertFlatProviderChildren(children);
+            assertEditableFlatProviderChildren(children);
         });
     });
 
@@ -288,7 +288,7 @@ suite('Config provider unit tests', () => {
             const children = provider.getChildren(mockElementRef);
 
             assert.strictEqual(children.length, 1);
-            assertFlatProviderChildren(children);
+            assertEditableFlatProviderChildren(children);
         });
 
         test('formats the archive attribute as Yes', () => {

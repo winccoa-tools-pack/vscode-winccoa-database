@@ -70,7 +70,7 @@ export function parseEditInputValue(
                 if (spec.nullable) return { value: null };
                 return { error: 'Value is required.' };
             }
-            if (!Number.isInteger(Number(trimmed))) {
+            if (!/^-?\d+$/.test(trimmed)) {
                 return { error: 'Enter a valid integer.' };
             }
             return { value: Number(trimmed) };

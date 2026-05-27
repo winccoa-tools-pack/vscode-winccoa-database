@@ -1,8 +1,19 @@
-import type { AttributeNodeModel, ElementRef } from '../types';
+import type { AttributeEditSpec, AttributeNodeModel, ElementRef } from '../types';
 import { INTEGER_EDIT_SPEC, STRING_EDIT_SPEC } from '../editing';
 import { buildCtrlPath, formatSimple } from '../formatters';
 import { getConfigDocsUrl } from '../docs';
 import { FlatConfigProvider } from './base';
+
+const ADDRESS_ATTRIBUTE_EDIT_SPECS: Record<string, AttributeEditSpec> = {
+    _reference: STRING_EDIT_SPEC,
+    _subindex: INTEGER_EDIT_SPEC,
+    _offset: INTEGER_EDIT_SPEC,
+    _datatype: INTEGER_EDIT_SPEC,
+    _drv_ident: STRING_EDIT_SPEC,
+    _connection: STRING_EDIT_SPEC,
+    _poll_group: STRING_EDIT_SPEC,
+    _response_mode: INTEGER_EDIT_SPEC,
+};
 
 export class AddressProvider extends FlatConfigProvider {
     readonly configName = '_address';
@@ -35,13 +46,7 @@ export class AddressProvider extends FlatConfigProvider {
             label: attribute.name,
             value: formatSimple(attribute.raw, 'sqlite'),
             editable: true,
-            editSpec:
-                attribute.name === '_reference' ||
-                attribute.name === '_drv_ident' ||
-                attribute.name === '_connection' ||
-                attribute.name === '_poll_group'
-                    ? STRING_EDIT_SPEC
-                    : INTEGER_EDIT_SPEC,
+            editSpec: ADDRESS_ATTRIBUTE_EDIT_SPECS[attribute.name],
             docsUrl,
         }));
     }
