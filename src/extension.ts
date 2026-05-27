@@ -21,6 +21,7 @@ let dbWatchedFiles: string[] = [];
 let refreshDebounceTimer: ReturnType<typeof setTimeout> | undefined;
 /** Repeated refreshes give WinCC OA time to propagate MCP writes back into SQLite snapshots. */
 const TREE_REFRESH_DELAYS_MS = [500, 1500, 3000] as const;
+const pendingTreeRefreshTimers = new Set<ReturnType<typeof setTimeout>>();
 
 function scheduleDebouncedRefresh(filename: string, curr: fs.Stats, prev: fs.Stats): void {
     log.info(
@@ -338,6 +339,7 @@ export async function activate(context: vscode.ExtensionContext) {
 
 export function deactivate() {
     log.info('WinCC OA Database deactivating');
+    clearPendingTreeRefreshTimers();
     stopDbWatcher();
     sqliteClient?.close();
 }
@@ -509,6 +511,7 @@ async function subscribeMcpServerEvents(context: vscode.ExtensionContext): Promi
 }
 
 function disconnectProject(message?: string): void {
+    clearPendingTreeRefreshTimers();
     stopDbWatcher();
     sqliteClient.close();
     dptTreeView.message = message;
@@ -796,9 +799,19 @@ function formatConfigAttributePlaceholder(currentValue: unknown): string {
 }
 
 function scheduleTreeRefreshAfterConfigWrite(): void {
+    clearPendingTreeRefreshTimers();
     for (const delay of TREE_REFRESH_DELAYS_MS) {
-        setTimeout(() => {
+        const timer = setTimeout(() => {
+            pendingTreeRefreshTimers.delete(timer);
             dptTreeProvider.refresh();
         }, delay);
+        pendingTreeRefreshTimers.add(timer);
     }
+}
+
+function clearPendingTreeRefreshTimers(): void {
+    for (const timer of pendingTreeRefreshTimers) {
+        clearTimeout(timer);
+    }
+    pendingTreeRefreshTimers.clear();
 }

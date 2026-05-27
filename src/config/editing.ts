@@ -55,7 +55,7 @@ export function parseEditInputValue(
 
     switch (spec.kind) {
         case 'string':
-            if (input === '' && spec.nullable) {
+            if (trimmed === '' && spec.nullable) {
                 return { value: null };
             }
             return { value: input };
