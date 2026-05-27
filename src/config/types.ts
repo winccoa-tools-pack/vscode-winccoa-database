@@ -40,6 +40,22 @@ export interface ConfigNodeModel {
 }
 
 /** Model for an attribute or detail child node under a config */
+export interface EnumEditOption {
+    value: number | string;
+    label: string;
+    description?: string;
+}
+
+export interface AttributeEditSpec {
+    kind: 'string' | 'number' | 'integer' | 'boolean' | 'enum';
+    nullable?: boolean;
+    trueLabel?: string;
+    trueValue?: unknown;
+    falseLabel?: string;
+    falseValue?: unknown;
+    options?: readonly EnumEditOption[];
+}
+
 export interface AttributeNodeModel {
     kind: 'attribute' | 'detail';
     attributePath: string;
@@ -47,6 +63,7 @@ export interface AttributeNodeModel {
     value: ValuePresentation;
     ctrlType?: string;
     editable: boolean;
+    editSpec?: AttributeEditSpec;
     docsUrl?: string;
 }
 

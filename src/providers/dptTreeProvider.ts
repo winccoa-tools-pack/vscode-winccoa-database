@@ -2,7 +2,12 @@ import * as vscode from 'vscode';
 import type { SqliteClient } from '../db/sqliteClient';
 import type { DpElement } from '../models/dpElement';
 import { getTypeName, OaElementType } from '../models/types';
-import type { ConfigProvider, ElementRef, AttributeNodeModel } from '../config/types';
+import type {
+    ConfigProvider,
+    ElementRef,
+    AttributeNodeModel,
+    AttributeEditSpec,
+} from '../config/types';
 import { createConfigProviders } from '../config/providers/index';
 
 const log = vscode.window.createOutputChannel('WinCC OA Database', { log: true });
@@ -16,6 +21,12 @@ export class DatabaseTreeItem extends vscode.TreeItem {
     public readonly ctrlPath?: string;
     /** For config items: the docs URL */
     public readonly docsUrl?: string;
+    /** For editable configAttribute items: write contract */
+    public readonly editSpec?: AttributeEditSpec;
+    /** For configAttribute items: current raw value */
+    public readonly rawValue?: unknown;
+    /** For configAttribute items: whether direct editing is supported */
+    public readonly editable?: boolean;
 
     constructor(
         public readonly label: string,
@@ -32,6 +43,9 @@ export class DatabaseTreeItem extends vscode.TreeItem {
             docsUrl?: string;
             description?: string;
             tooltip?: string;
+            editSpec?: AttributeEditSpec;
+            rawValue?: unknown;
+            editable?: boolean;
         },
     ) {
         super(label, collapsibleState);
@@ -39,6 +53,9 @@ export class DatabaseTreeItem extends vscode.TreeItem {
         this.configName = options?.configName;
         this.ctrlPath = options?.ctrlPath;
         this.docsUrl = options?.docsUrl;
+        this.editSpec = options?.editSpec;
+        this.rawValue = options?.rawValue;
+        this.editable = options?.editable;
 
         switch (itemType) {
             case 'dpt':
@@ -74,7 +91,7 @@ export class DatabaseTreeItem extends vscode.TreeItem {
                 this.tooltip = options?.tooltip;
                 break;
             case 'configAttribute':
-                this.contextValue = 'configAttribute';
+                this.contextValue = options?.editable ? 'configAttributeEditable' : 'configAttribute';
                 this.iconPath = new vscode.ThemeIcon('symbol-property');
                 this.description = options?.description;
                 this.tooltip = options?.tooltip;
@@ -360,7 +377,7 @@ export class DptTreeProvider
             tooltipParts.push(`Value: ${attr.value.display}`);
         }
         tooltipParts.push(`Source: ${attr.value.source}`);
-        tooltipParts.push('Read-only');
+        tooltipParts.push(attr.editable ? 'Editable via MCP' : 'Read-only');
         if (attr.value.stale) {
             tooltipParts.push('⚠ Value may be stale');
         }
@@ -380,6 +397,9 @@ export class DptTreeProvider
                 docsUrl: attr.docsUrl,
                 description: attr.value.display,
                 tooltip: tooltipParts.join('\n'),
+                editSpec: attr.editSpec,
+                rawValue: attr.value.raw,
+                editable: attr.editable,
             },
         );
     }

@@ -119,6 +119,12 @@
                 "title": "Open Config Documentation",
                 "icon": "$(book)",
                 "category": "WinCC OA Database"
+            },
+            {
+                "command": "winccoa-database.editConfigAttribute",
+                "title": "Edit Config Attribute",
+                "icon": "$(edit)",
+                "category": "WinCC OA Database"
             }
         ],
         "menus": {
@@ -182,18 +188,23 @@
                 },
                 {
                     "command": "winccoa-database.copyCtrlPath",
-                    "when": "view == winccoa-database.dptView && viewItem == configAttribute",
+                    "when": "view == winccoa-database.dptView && (viewItem == configAttribute || viewItem == configAttributeEditable)",
                     "group": "9_cutcopypaste@1"
                 },
                 {
                     "command": "winccoa-database.openConfigDocs",
-                    "when": "view == winccoa-database.dptView && viewItem == configAttribute",
+                    "when": "view == winccoa-database.dptView && (viewItem == configAttribute || viewItem == configAttributeEditable)",
                     "group": "z_docs"
                 },
                 {
                     "command": "winccoa-database.openConfigEditor",
-                    "when": "view == winccoa-database.dptView && viewItem == configAttribute",
+                    "when": "view == winccoa-database.dptView && (viewItem == configAttribute || viewItem == configAttributeEditable)",
                     "group": "1_edit"
+                },
+                {
+                    "command": "winccoa-database.editConfigAttribute",
+                    "when": "view == winccoa-database.dptView && viewItem == configAttributeEditable",
+                    "group": "1_edit@1"
                 }
             ],
             "commandPalette": [
@@ -223,6 +234,10 @@
                 },
                 {
                     "command": "winccoa-database.openConfigDocs",
+                    "when": "false"
+                },
+                {
+                    "command": "winccoa-database.editConfigAttribute",
                     "when": "false"
                 }
             ]

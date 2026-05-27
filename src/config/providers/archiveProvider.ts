@@ -1,4 +1,5 @@
 import type { AttributeNodeModel, ElementRef } from '../types';
+import { YES_NO_EDIT_SPEC } from '../editing';
 import { buildCtrlPath, formatBool } from '../formatters';
 import { getConfigDocsUrl } from '../docs';
 import { FlatConfigProvider } from './base';
@@ -24,7 +25,8 @@ export class ArchiveProvider extends FlatConfigProvider {
                 attributePath: buildCtrlPath(element.fullElementPath, this.configName, '_archive'),
                 label: '_archive',
                 value: formatBool(config.archive, 'sqlite'),
-                editable: false,
+                editable: true,
+                editSpec: YES_NO_EDIT_SPEC,
                 docsUrl,
             },
         ];

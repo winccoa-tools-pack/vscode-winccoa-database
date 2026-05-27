@@ -7,6 +7,7 @@ import { ArchiveProvider } from '../../config/providers/archiveProvider';
 import { RuntimeLinkProvider } from '../../config/providers/base';
 import { DefaultProvider } from '../../config/providers/defaultProvider';
 import { createConfigProviders } from '../../config/providers/index';
+import { parseEditInputValue, YES_NO_EDIT_SPEC } from '../../config/editing';
 import type { SqliteClient } from '../../db/sqliteClient';
 import type { ElementRef } from '../../config/types';
 
@@ -73,10 +74,15 @@ const archiveConfig = {
 };
 
 function assertFlatProviderChildren(
-    children: Array<{ editable: boolean; value: { source: string } }>,
+    children: Array<{
+        editable: boolean;
+        editSpec?: unknown;
+        value: { source: string };
+    }>,
 ): void {
     assert.ok(children.length > 0);
-    assert.ok(children.every((child) => child.editable === false));
+    assert.ok(children.every((child) => child.editable === true));
+    assert.ok(children.every((child) => child.editSpec));
     assert.ok(children.every((child) => child.value.source === 'sqlite'));
 }
 
@@ -319,6 +325,27 @@ suite('Config provider unit tests', () => {
 
         test('openDefaultAction() returns openConfigEditor', () => {
             assert.strictEqual(provider.openDefaultAction(mockElementRef), 'openConfigEditor');
+        });
+    });
+
+    suite('config editing helpers', () => {
+        test('parses empty nullable strings as null', () => {
+            assert.deepStrictEqual(
+                parseEditInputValue({ kind: 'string', nullable: true }, ''),
+                { value: null },
+            );
+        });
+
+        test('parses numeric yes/no selections to MCP values', () => {
+            assert.deepStrictEqual(parseEditInputValue(YES_NO_EDIT_SPEC, 'Yes'), { value: 1 });
+            assert.deepStrictEqual(parseEditInputValue(YES_NO_EDIT_SPEC, 'No'), { value: 0 });
+        });
+
+        test('rejects invalid integer input', () => {
+            assert.strictEqual(
+                parseEditInputValue({ kind: 'integer' }, '3.14').error,
+                'Enter a valid integer.',
+            );
         });
     });
 

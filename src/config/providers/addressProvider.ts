@@ -1,4 +1,5 @@
 import type { AttributeNodeModel, ElementRef } from '../types';
+import { INTEGER_EDIT_SPEC, STRING_EDIT_SPEC } from '../editing';
 import { buildCtrlPath, formatSimple } from '../formatters';
 import { getConfigDocsUrl } from '../docs';
 import { FlatConfigProvider } from './base';
@@ -33,7 +34,14 @@ export class AddressProvider extends FlatConfigProvider {
             attributePath: buildCtrlPath(element.fullElementPath, this.configName, attribute.name),
             label: attribute.name,
             value: formatSimple(attribute.raw, 'sqlite'),
-            editable: false,
+            editable: true,
+            editSpec:
+                attribute.name === '_reference' ||
+                attribute.name === '_drv_ident' ||
+                attribute.name === '_connection' ||
+                attribute.name === '_poll_group'
+                    ? STRING_EDIT_SPEC
+                    : INTEGER_EDIT_SPEC,
             docsUrl,
         }));
     }

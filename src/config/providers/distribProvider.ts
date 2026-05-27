@@ -1,4 +1,5 @@
 import type { AttributeNodeModel, ElementRef } from '../types';
+import { INTEGER_EDIT_SPEC } from '../editing';
 import { buildCtrlPath, formatSimple } from '../formatters';
 import { getConfigDocsUrl } from '../docs';
 import { FlatConfigProvider } from './base';
@@ -28,7 +29,8 @@ export class DistribProvider extends FlatConfigProvider {
                 ),
                 label: '_driver_number',
                 value: formatSimple(config.driver_number, 'sqlite'),
-                editable: false,
+                editable: true,
+                editSpec: INTEGER_EDIT_SPEC,
                 docsUrl,
             },
         ];

@@ -284,5 +284,26 @@ suite('DptTreeProvider Unit Tests', () => {
             );
             assert.strictEqual(item.contextValue, 'dpElement');
         });
+
+        test('should set contextValue "configAttributeEditable" for editable config attributes', () => {
+            const item = new DatabaseTreeItem(
+                '_archive',
+                vscode.TreeItemCollapsibleState.None,
+                'configAttribute',
+                1,
+                100,
+                5,
+                0,
+                undefined,
+                {
+                    ctrlPath: 'System1:TestDP.Value:_archive.._archive',
+                    editable: true,
+                    rawValue: 1,
+                    description: 'Yes',
+                },
+            );
+            assert.strictEqual(item.contextValue, 'configAttributeEditable');
+            assert.strictEqual(item.getCtrlPath(), 'System1:TestDP.Value:_archive.._archive');
+        });
     });
 });

@@ -8,6 +8,8 @@ import { ConfigEditorPanel } from './providers/configEditorProvider';
 import { DptEditorPanel } from './providers/dptEditorProvider';
 import { McpClient, promptMcpSetup } from './api/mcpClient';
 import { McpServerExtensionApi } from './api/mcpServerExtensionApi';
+import { formatEditInputValue, parseEditInputValue } from './config/editing';
+import type { AttributeEditSpec } from './config/types';
 
 // ---------------------------------------------------------------------------
 
@@ -169,6 +171,12 @@ export async function activate(context: vscode.ExtensionContext) {
             if (item && item.docsUrl) {
                 vscode.env.openExternal(vscode.Uri.parse(item.docsUrl));
             }
+        }),
+        vscode.commands.registerCommand('winccoa-database.editConfigAttribute', async (item) => {
+            log.info(
+                `Command: editConfigAttribute, item=${JSON.stringify(item?.label)}, ctrlPath=${item?.ctrlPath}`,
+            );
+            await editConfigAttribute(item);
         }),
         vscode.commands.registerCommand('winccoa-database.createDp', async (item) => {
             log.info(`Command: createDp, dptLabel=${item?.label}`);
@@ -697,4 +705,88 @@ function openConfigEditor(
     }
 
     ConfigEditorPanel.show(sqliteClient, dpId, elId, label, extensionUri, mcpClient);
+}
+
+async function editConfigAttribute(item: DatabaseTreeItem | undefined): Promise<void> {
+    if (!item?.ctrlPath || !item.editable || !item.editSpec) {
+        return;
+    }
+
+    if (!mcpClient.isConfigured) {
+        await promptMcpSetup();
+        return;
+    }
+
+    const nextValue = await promptConfigAttributeValue(item.label, item.rawValue, item.editSpec);
+    if (nextValue === undefined) {
+        return;
+    }
+
+    const result = await mcpClient.dpSet(item.ctrlPath, nextValue);
+    if (result.success) {
+        vscode.window.showInformationMessage(`Updated ${item.ctrlPath}`);
+        setTimeout(() => {
+            dptTreeProvider.refresh();
+        }, 500);
+    } else if (result.error?.includes('not reachable')) {
+        await promptMcpSetup();
+    } else {
+        vscode.window.showErrorMessage(`Failed to update config attribute: ${result.error}`);
+    }
+}
+
+async function promptConfigAttributeValue(
+    label: string,
+    currentValue: unknown,
+    editSpec: AttributeEditSpec,
+): Promise<unknown | undefined> {
+    if (editSpec.kind === 'boolean') {
+        const falseLabel = editSpec.falseLabel ?? 'False';
+        const trueLabel = editSpec.trueLabel ?? 'True';
+        const items = [
+            {
+                label: falseLabel,
+                value: editSpec.falseValue ?? false,
+                picked: currentValue === (editSpec.falseValue ?? false),
+            },
+            {
+                label: trueLabel,
+                value: editSpec.trueValue ?? true,
+                picked: currentValue === (editSpec.trueValue ?? true),
+            },
+        ];
+        const choice = await vscode.window.showQuickPick(items, {
+            title: `Set ${label}`,
+            placeHolder: `Current value: ${formatEditInputValue(currentValue) || 'empty'}`,
+        });
+        return choice?.value;
+    }
+
+    if (editSpec.kind === 'enum') {
+        const items =
+            editSpec.options?.map((option) => ({
+                label: option.label,
+                description: String(option.value),
+                detail: option.description,
+                value: option.value,
+                picked: currentValue === option.value,
+            })) ?? [];
+        const choice = await vscode.window.showQuickPick(items, {
+            title: `Set ${label}`,
+            placeHolder: `Current value: ${formatEditInputValue(currentValue) || 'empty'}`,
+        });
+        return choice?.value;
+    }
+
+    const promptSuffix = editSpec.nullable ? ' Leave empty to clear the value.' : '';
+    const input = await vscode.window.showInputBox({
+        title: `Set ${label}`,
+        value: formatEditInputValue(currentValue),
+        prompt: `Enter a new value for ${label}.${promptSuffix}`,
+        validateInput: (value) => parseEditInputValue(editSpec, value).error,
+    });
+    if (input === undefined) {
+        return undefined;
+    }
+    return parseEditInputValue(editSpec, input).value;
 }
