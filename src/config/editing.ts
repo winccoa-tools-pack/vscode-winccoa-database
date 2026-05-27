@@ -64,10 +64,11 @@ export function parseEditInputValue(
                 if (spec.nullable) return { value: null };
                 return { error: 'Value is required.' };
             }
-            if (Number.isNaN(Number(trimmed))) {
+            const parsedNumber = Number(trimmed);
+            if (!Number.isFinite(parsedNumber)) {
                 return { error: 'Enter a valid number.' };
             }
-            return { value: Number(trimmed) };
+            return { value: parsedNumber };
         case 'integer':
             if (trimmed === '') {
                 if (spec.nullable) return { value: null };
