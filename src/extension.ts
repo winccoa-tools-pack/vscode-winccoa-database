@@ -19,6 +19,8 @@ let dptTreeView: vscode.TreeView<DatabaseTreeItem>;
 let mcpClient: McpClient;
 let dbWatchedFiles: string[] = [];
 let refreshDebounceTimer: ReturnType<typeof setTimeout> | undefined;
+/** Repeated refreshes give WinCC OA time to propagate MCP writes back into SQLite snapshots. */
+const TREE_REFRESH_DELAYS_MS = [500, 1500, 3000] as const;
 
 function scheduleDebouncedRefresh(filename: string, curr: fs.Stats, prev: fs.Stats): void {
     log.info(
@@ -794,7 +796,7 @@ function formatConfigAttributePlaceholder(currentValue: unknown): string {
 }
 
 function scheduleTreeRefreshAfterConfigWrite(): void {
-    for (const delay of [500, 1500, 3000]) {
+    for (const delay of TREE_REFRESH_DELAYS_MS) {
         setTimeout(() => {
             dptTreeProvider.refresh();
         }, delay);

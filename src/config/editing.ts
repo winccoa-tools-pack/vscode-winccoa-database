@@ -1,5 +1,8 @@
 import type { AttributeEditSpec, EnumEditOption } from './types';
 
+/** Matches whole-number input with an optional leading negative sign. */
+const INTEGER_INPUT_PATTERN = /^-?\d+$/;
+
 export const STRING_EDIT_SPEC: AttributeEditSpec = {
     kind: 'string',
 };
@@ -70,7 +73,7 @@ export function parseEditInputValue(
                 if (spec.nullable) return { value: null };
                 return { error: 'Value is required.' };
             }
-            if (!/^-?\d+$/.test(trimmed)) {
+            if (!INTEGER_INPUT_PATTERN.test(trimmed)) {
                 return { error: 'Enter a valid integer.' };
             }
             return { value: Number(trimmed) };
