@@ -59,7 +59,7 @@ export function parseEditInputValue(
                 return { value: null };
             }
             return { value: trimmed };
-        case 'number':
+        case 'number': {
             if (trimmed === '') {
                 if (spec.nullable) return { value: null };
                 return { error: 'Value is required.' };
@@ -69,6 +69,7 @@ export function parseEditInputValue(
                 return { error: 'Enter a valid number.' };
             }
             return { value: parsedNumber };
+        }
         case 'integer':
             if (trimmed === '') {
                 if (spec.nullable) return { value: null };
