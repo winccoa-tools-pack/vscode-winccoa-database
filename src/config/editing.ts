@@ -58,7 +58,7 @@ export function parseEditInputValue(
             if (trimmed === '' && spec.nullable) {
                 return { value: null };
             }
-            return { value: input };
+            return { value: trimmed };
         case 'number':
             if (trimmed === '') {
                 if (spec.nullable) return { value: null };
@@ -92,7 +92,7 @@ export function parseEditInputValue(
         }
         case 'enum': {
             const option = spec.options?.find(
-                (entry) => entry.label === input || String(entry.value) === trimmed,
+                (entry) => entry.label === trimmed || String(entry.value) === trimmed,
             );
             if (!option) {
                 return { error: 'Choose one of the supported values.' };

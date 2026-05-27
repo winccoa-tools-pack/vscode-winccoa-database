@@ -22,6 +22,7 @@ let refreshDebounceTimer: ReturnType<typeof setTimeout> | undefined;
 /** Repeated refreshes give WinCC OA time to propagate MCP writes back into SQLite snapshots. */
 const TREE_REFRESH_DELAYS_MS = [500, 1500, 3000] as const;
 const pendingTreeRefreshTimers = new Set<ReturnType<typeof setTimeout>>();
+let isExtensionActive = false;
 
 function scheduleDebouncedRefresh(filename: string, curr: fs.Stats, prev: fs.Stats): void {
     log.info(
@@ -84,6 +85,7 @@ async function getMcpServerApi(): Promise<McpServerExtensionApi | undefined> {
 
 export async function activate(context: vscode.ExtensionContext) {
     log.info('=== WinCC OA Database extension activating ===');
+    isExtensionActive = true;
 
     sqliteClient = new SqliteClient();
     mcpClient = new McpClient();
@@ -339,6 +341,7 @@ export async function activate(context: vscode.ExtensionContext) {
 
 export function deactivate() {
     log.info('WinCC OA Database deactivating');
+    isExtensionActive = false;
     clearPendingTreeRefreshTimers();
     stopDbWatcher();
     sqliteClient?.close();
@@ -766,14 +769,17 @@ async function promptConfigAttributeValue(
     }
 
     if (editSpec.kind === 'enum') {
-        const items =
-            editSpec.options?.map((option) => ({
-                label: option.label,
-                description: String(option.value),
-                detail: option.description,
-                value: option.value,
-                picked: currentValue === option.value,
-            })) ?? [];
+        if (!editSpec.options?.length) {
+            vscode.window.showErrorMessage(`No supported values are defined for ${label}.`);
+            return undefined;
+        }
+        const items = editSpec.options.map((option) => ({
+            label: option.label,
+            description: String(option.value),
+            detail: option.description,
+            value: option.value,
+            picked: currentValue === option.value,
+        }));
         const choice = await vscode.window.showQuickPick(items, {
             title: `Set ${label}`,
             placeHolder: formatConfigAttributePlaceholder(currentValue),
@@ -803,6 +809,9 @@ function scheduleTreeRefreshAfterConfigWrite(): void {
     for (const delay of TREE_REFRESH_DELAYS_MS) {
         const timer = setTimeout(() => {
             pendingTreeRefreshTimers.delete(timer);
+            if (!isExtensionActive) {
+                return;
+            }
             dptTreeProvider.refresh();
         }, delay);
         pendingTreeRefreshTimers.add(timer);
