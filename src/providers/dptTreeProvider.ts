@@ -293,9 +293,11 @@ export class DptTreeProvider
         });
     }
 
-    /** Internal DPT/DP names have "_" as the first character after any optional system prefix. */
+    /** Internal DPT/DP names have "_" as the first character after any optional system prefix.
+     * Master datapoints ("_mp_*") are NOT internal — they are user-visible. */
     private isInternalName(name: string): boolean {
-        return name.split(':').at(-1)?.startsWith('_') ?? false;
+        const local = name.split(':').at(-1) ?? '';
+        return local.startsWith('_') && !local.startsWith('_mp_');
     }
 
     /** DP expanded: show element tree (skip root element, show its children) */
