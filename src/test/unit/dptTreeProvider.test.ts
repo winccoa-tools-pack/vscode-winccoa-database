@@ -143,7 +143,6 @@ suite('DptTreeProvider Unit Tests', () => {
                     return undefined;
                 },
             } as unknown as SqliteClient;
-
         });
 
         setup(() => {
