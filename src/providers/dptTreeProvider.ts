@@ -7,7 +7,6 @@ import { createConfigProviders } from '../config/providers/index';
 
 const log = vscode.window.createOutputChannel('WinCC OA Database', { log: true });
 
-type ItemType = 'dpt' | 'dp' | 'dpElement';
 type ItemType = 'toggleInternal' | 'dpt' | 'dp' | 'dpElement' | 'config' | 'configAttribute';
 
 export class DatabaseTreeItem extends vscode.TreeItem {
