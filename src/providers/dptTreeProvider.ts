@@ -220,6 +220,13 @@ export class DptTreeProvider
         const filtered = dpTypes.filter(
             (dpt) => this.showInternal || !this.isInternalName(dpt.canonical_name),
         );
+        if (this.showInternal) {
+            filtered.sort((a, b) => {
+                const aInternal = this.isInternalName(a.canonical_name) ? 0 : 1;
+                const bInternal = this.isInternalName(b.canonical_name) ? 0 : 1;
+                return aInternal - bInternal;
+            });
+        }
         log.info(`[Tree] Root: ${filtered.length} DPTs after filter`);
 
         const toggleItem = new DatabaseTreeItem(
@@ -259,6 +266,13 @@ export class DptTreeProvider
         const filtered = datapoints.filter(
             (dp) => this.showInternal || !this.isInternalName(dp.canonical_name),
         );
+        if (this.showInternal) {
+            filtered.sort((a, b) => {
+                const aInternal = this.isInternalName(a.canonical_name) ? 0 : 1;
+                const bInternal = this.isInternalName(b.canonical_name) ? 0 : 1;
+                return aInternal - bInternal;
+            });
+        }
         log.info(`[Tree] DPT ${dptId}: ${filtered.length} datapoints after filter`);
 
         return filtered.map((dp) => {
