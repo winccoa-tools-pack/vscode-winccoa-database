@@ -148,7 +148,7 @@ export async function activate(context: vscode.ExtensionContext) {
                 `Command: openConfigValueEditor, item=${JSON.stringify(item?.label)}, configName=${item?.configName}`,
             );
             if (item?.itemType === 'configAttribute') {
-                openConfigValueEditor(item, context.extensionUri);
+                openConfigValueEditor(item);
             }
         }),
         vscode.commands.registerCommand('winccoa-database.copyDpName', async (item) => {
@@ -720,12 +720,12 @@ function openConfigEditor(
     ConfigEditorPanel.show(sqliteClient, dpId, elId, label, extensionUri, mcpClient);
 }
 
-function openConfigValueEditor(item: DatabaseTreeItem, extensionUri: vscode.Uri): void {
+function openConfigValueEditor(item: DatabaseTreeItem): void {
     if (!sqliteClient.isOpen) {
         log.warn('openConfigValueEditor: no project connected');
         vscode.window.showWarningMessage('No WinCC OA project connected.');
         return;
     }
 
-    ConfigValueEditorPanel.show(sqliteClient, item, extensionUri, mcpClient);
+    ConfigValueEditorPanel.show(sqliteClient, item, mcpClient);
 }

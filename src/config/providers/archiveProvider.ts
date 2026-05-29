@@ -25,7 +25,7 @@ export class ArchiveProvider extends FlatConfigProvider {
                 attributePath: buildCtrlPath(element.fullElementPath, this.configName, '_archive'),
                 label: '_archive',
                 value: formatBool(config.archive, 'sqlite'),
-                editable: false,
+                editable: true,
                 docsUrl,
             }),
         ];

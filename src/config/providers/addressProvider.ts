@@ -35,7 +35,7 @@ export class AddressProvider extends FlatConfigProvider {
                 attributePath: buildCtrlPath(element.fullElementPath, this.configName, attribute.name),
                 label: attribute.name,
                 value: formatSimple(attribute.raw, 'sqlite'),
-                editable: false,
+                editable: true,
                 docsUrl,
             }),
         );

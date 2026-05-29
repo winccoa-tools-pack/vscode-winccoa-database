@@ -31,7 +31,7 @@ export class SmoothProvider extends FlatConfigProvider {
                 attributePath: buildCtrlPath(element.fullElementPath, this.configName, '_type'),
                 label: '_type',
                 value: formatEnum(config.type, SMOOTH_TYPE_MAP, 'sqlite'),
-                editable: false,
+                editable: true,
                 docsUrl,
             }),
             withConfigAttributeMetadata(this.configName, {
@@ -39,7 +39,7 @@ export class SmoothProvider extends FlatConfigProvider {
                 attributePath: buildCtrlPath(element.fullElementPath, this.configName, '_std_type'),
                 label: '_std_type',
                 value: formatSimple(config.std_type, 'sqlite'),
-                editable: false,
+                editable: true,
                 docsUrl,
             }),
             withConfigAttributeMetadata(this.configName, {
@@ -47,7 +47,7 @@ export class SmoothProvider extends FlatConfigProvider {
                 attributePath: buildCtrlPath(element.fullElementPath, this.configName, '_std_time'),
                 label: '_std_time',
                 value: formatSimple(config.std_time, 'sqlite'),
-                editable: false,
+                editable: true,
                 docsUrl,
             }),
         ];

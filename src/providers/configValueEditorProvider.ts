@@ -13,9 +13,11 @@ type WebviewMessage = { command: 'setValue' | 'openDocs'; value?: string };
 export class ConfigValueEditorPanel {
     public static currentPanel: ConfigValueEditorPanel | undefined;
     private static readonly viewType = 'winccoa-database.configValueEditor';
+    private static readonly REFRESH_DELAY_MS = 500;
 
     private readonly panel: vscode.WebviewPanel;
     private disposables: vscode.Disposable[] = [];
+    private refreshTimeout: ReturnType<typeof setTimeout> | undefined;
 
     private currentDptId = 0;
     private currentDpId = 0;
@@ -42,10 +44,8 @@ export class ConfigValueEditorPanel {
     public static show(
         db: SqliteClient,
         item: DatabaseTreeItem,
-        extensionUri: vscode.Uri,
         mcpClient: McpClient | null = null,
     ): void {
-        void extensionUri;
         const column = vscode.ViewColumn.Beside;
 
         if (ConfigValueEditorPanel.currentPanel) {
@@ -75,13 +75,13 @@ export class ConfigValueEditorPanel {
     }
 
     private async setValueViaMcp(rawValue: string): Promise<void> {
-        if (!this.mcpClient || !this.mcpClient.isConfigured) {
-            promptMcpSetup();
+        if (!this.currentCtrlPath) {
+            vscode.window.showErrorMessage('Cannot determine the config CTRL path.');
             return;
         }
 
-        if (!this.currentCtrlPath) {
-            vscode.window.showErrorMessage('Cannot determine the config CTRL path.');
+        if (!this.mcpClient || !this.mcpClient.isConfigured) {
+            promptMcpSetup();
             return;
         }
 
@@ -91,7 +91,17 @@ export class ConfigValueEditorPanel {
         );
         const trimmed = rawValue.trim();
 
-        if (trimmed === '' && metadata && metadata.datatype !== OaElementType.STRING) {
+        if (trimmed === '' && metadata?.datatype === OaElementType.BOOL) {
+            vscode.window.showErrorMessage('Please choose a boolean value before saving.');
+            return;
+        }
+
+        if (
+            trimmed === '' &&
+            metadata &&
+            metadata.datatype !== OaElementType.STRING &&
+            metadata.datatype !== OaElementType.BOOL
+        ) {
             vscode.window.showErrorMessage('Please enter a value before saving.');
             return;
         }
@@ -103,7 +113,11 @@ export class ConfigValueEditorPanel {
 
         if (result.success) {
             vscode.window.showInformationMessage(`Config value updated: ${this.currentCtrlPath}`);
-            setTimeout(() => this.refresh(), 500);
+            this.clearRefreshTimeout();
+            this.refreshTimeout = setTimeout(() => {
+                this.refreshTimeout = undefined;
+                this.refresh();
+            }, ConfigValueEditorPanel.REFRESH_DELAY_MS);
         } else if (result.error?.includes('not reachable')) {
             promptMcpSetup();
         } else {
@@ -275,7 +289,7 @@ export class ConfigValueEditorPanel {
     <span class="label">Set value</span>
     <div class="editor-row">
       ${inputHtml}
-      <button id="saveBtn" ${attribute.editable ? '' : 'disabled'}>Save</button>
+      <button id="saveBtn">Save</button>
     </div>
     <div class="actions">
       <button id="docsBtn">Open documentation</button>
@@ -308,9 +322,17 @@ export class ConfigValueEditorPanel {
 
     public dispose(): void {
         ConfigValueEditorPanel.currentPanel = undefined;
+        this.clearRefreshTimeout();
         this.panel.dispose();
         while (this.disposables.length) {
             this.disposables.pop()?.dispose();
+        }
+    }
+
+    private clearRefreshTimeout(): void {
+        if (this.refreshTimeout !== undefined) {
+            clearTimeout(this.refreshTimeout);
+            this.refreshTimeout = undefined;
         }
     }
 }
@@ -334,16 +356,24 @@ function buildValueInput(valueStr: string, datatype: number | undefined): string
     }
 }
 
-function parseConfigValue(rawValue: string, datatype: number | undefined): boolean | number | string {
+function parseConfigValue(
+    value: string | number | boolean,
+    datatype: number | undefined,
+): boolean | number | string {
     switch (datatype) {
         case OaElementType.BOOL:
-            return rawValue === 'true' || rawValue === '1';
+            return (
+                value === true ||
+                value === 1 ||
+                value === 'true' ||
+                value === '1'
+            );
         case OaElementType.INT:
         case OaElementType.LONG:
         case OaElementType.FLOAT:
-            return Number(rawValue);
+            return Number(value);
         default:
-            return rawValue;
+            return String(value);
     }
 }
 

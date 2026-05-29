@@ -25,7 +25,7 @@ export class PvRangeProvider extends FlatConfigProvider {
                 attributePath: buildCtrlPath(element.fullElementPath, this.configName, '_min'),
                 label: '_min',
                 value: formatSimple(config.min, 'sqlite'),
-                editable: false,
+                editable: true,
                 docsUrl,
             }),
             withConfigAttributeMetadata(this.configName, {
@@ -33,7 +33,7 @@ export class PvRangeProvider extends FlatConfigProvider {
                 attributePath: buildCtrlPath(element.fullElementPath, this.configName, '_max'),
                 label: '_max',
                 value: formatSimple(config.max, 'sqlite'),
-                editable: false,
+                editable: true,
                 docsUrl,
             }),
             withConfigAttributeMetadata(this.configName, {
@@ -41,7 +41,7 @@ export class PvRangeProvider extends FlatConfigProvider {
                 attributePath: buildCtrlPath(element.fullElementPath, this.configName, '_incl_min'),
                 label: '_incl_min',
                 value: formatBool(config.incl_min, 'sqlite'),
-                editable: false,
+                editable: true,
                 docsUrl,
             }),
             withConfigAttributeMetadata(this.configName, {
@@ -49,7 +49,7 @@ export class PvRangeProvider extends FlatConfigProvider {
                 attributePath: buildCtrlPath(element.fullElementPath, this.configName, '_incl_max'),
                 label: '_incl_max',
                 value: formatBool(config.incl_max, 'sqlite'),
-                editable: false,
+                editable: true,
                 docsUrl,
             }),
             withConfigAttributeMetadata(this.configName, {
@@ -57,7 +57,7 @@ export class PvRangeProvider extends FlatConfigProvider {
                 attributePath: buildCtrlPath(element.fullElementPath, this.configName, '_neg'),
                 label: '_neg',
                 value: formatBool(config.neg, 'sqlite'),
-                editable: false,
+                editable: true,
                 docsUrl,
             }),
             withConfigAttributeMetadata(this.configName, {
@@ -69,7 +69,7 @@ export class PvRangeProvider extends FlatConfigProvider {
                 ),
                 label: '_ignor_inv',
                 value: formatBool(config.ignor_inv, 'sqlite'),
-                editable: false,
+                editable: true,
                 docsUrl,
             }),
             withConfigAttributeMetadata(this.configName, {
@@ -77,7 +77,7 @@ export class PvRangeProvider extends FlatConfigProvider {
                 attributePath: buildCtrlPath(element.fullElementPath, this.configName, '_match'),
                 label: '_match',
                 value: formatSimple(config.match, 'sqlite'),
-                editable: false,
+                editable: true,
                 docsUrl,
             }),
         ];

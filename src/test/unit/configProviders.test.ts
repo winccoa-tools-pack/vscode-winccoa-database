@@ -78,6 +78,7 @@ function assertFlatProviderChildren(
     assert.ok(children.length > 0);
     assert.ok(children.every((child) => child.editable === true));
     assert.ok(children.every((child) => typeof child.description === 'string'));
+    assert.ok(children.every((child) => (child.description?.length ?? 0) > 0));
     assert.ok(children.every((child) => child.value.source === 'sqlite'));
 }
 

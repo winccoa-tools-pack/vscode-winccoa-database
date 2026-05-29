@@ -29,7 +29,7 @@ export class DistribProvider extends FlatConfigProvider {
                 ),
                 label: '_driver_number',
                 value: formatSimple(config.driver_number, 'sqlite'),
-                editable: false,
+                editable: true,
                 docsUrl,
             }),
         ];
