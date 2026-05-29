@@ -1,6 +1,7 @@
 import type { AttributeNodeModel, ElementRef } from '../types';
 import { buildCtrlPath, formatBool } from '../formatters';
 import { getConfigDocsUrl } from '../docs';
+import { withConfigAttributeMetadata } from '../metadata';
 import { FlatConfigProvider } from './base';
 
 export class ArchiveProvider extends FlatConfigProvider {
@@ -19,14 +20,14 @@ export class ArchiveProvider extends FlatConfigProvider {
         const docsUrl = getConfigDocsUrl(this.configName);
 
         return [
-            {
+            withConfigAttributeMetadata(this.configName, {
                 kind: 'attribute',
                 attributePath: buildCtrlPath(element.fullElementPath, this.configName, '_archive'),
                 label: '_archive',
                 value: formatBool(config.archive, 'sqlite'),
                 editable: false,
                 docsUrl,
-            },
+            }),
         ];
     }
 }

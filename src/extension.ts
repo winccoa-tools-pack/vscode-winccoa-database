@@ -5,6 +5,7 @@ import { SqliteClient } from './db/sqliteClient';
 import { DptTreeProvider } from './providers/dptTreeProvider';
 import { DatabaseTreeItem } from './providers/dptTreeProvider';
 import { ConfigEditorPanel } from './providers/configEditorProvider';
+import { ConfigValueEditorPanel } from './providers/configValueEditorProvider';
 import { DptEditorPanel } from './providers/dptEditorProvider';
 import { McpClient, promptMcpSetup } from './api/mcpClient';
 import { McpServerExtensionApi } from './api/mcpServerExtensionApi';
@@ -106,6 +107,14 @@ export async function activate(context: vscode.ExtensionContext) {
                 webviewPanel.dispose();
             },
         }),
+        vscode.window.registerWebviewPanelSerializer('winccoa-database.configValueEditor', {
+            async deserializeWebviewPanel(webviewPanel: vscode.WebviewPanel, state: unknown) {
+                log.info(
+                    `Deserializing config value editor webview panel, state=${JSON.stringify(state)}`,
+                );
+                webviewPanel.dispose();
+            },
+        }),
         vscode.window.registerWebviewPanelSerializer('winccoa-database.dptEditor', {
             async deserializeWebviewPanel(webviewPanel: vscode.WebviewPanel, state: unknown) {
                 log.info(`Deserializing DPT editor webview panel, state=${JSON.stringify(state)}`);
@@ -132,6 +141,14 @@ export async function activate(context: vscode.ExtensionContext) {
             );
             if (item && item.dpId !== undefined && item.elId !== undefined) {
                 openConfigEditor(item.dpId, item.elId, item.label, context.extensionUri);
+            }
+        }),
+        vscode.commands.registerCommand('winccoa-database.openConfigValueEditor', (item) => {
+            log.info(
+                `Command: openConfigValueEditor, item=${JSON.stringify(item?.label)}, configName=${item?.configName}`,
+            );
+            if (item?.itemType === 'configAttribute') {
+                openConfigValueEditor(item, context.extensionUri);
             }
         }),
         vscode.commands.registerCommand('winccoa-database.copyDpName', async (item) => {
@@ -701,4 +718,14 @@ function openConfigEditor(
     }
 
     ConfigEditorPanel.show(sqliteClient, dpId, elId, label, extensionUri, mcpClient);
+}
+
+function openConfigValueEditor(item: DatabaseTreeItem, extensionUri: vscode.Uri): void {
+    if (!sqliteClient.isOpen) {
+        log.warn('openConfigValueEditor: no project connected');
+        vscode.window.showWarningMessage('No WinCC OA project connected.');
+        return;
+    }
+
+    ConfigValueEditorPanel.show(sqliteClient, item, extensionUri, mcpClient);
 }

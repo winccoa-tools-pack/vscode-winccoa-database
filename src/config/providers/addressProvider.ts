@@ -1,6 +1,7 @@
 import type { AttributeNodeModel, ElementRef } from '../types';
 import { buildCtrlPath, formatSimple } from '../formatters';
 import { getConfigDocsUrl } from '../docs';
+import { withConfigAttributeMetadata } from '../metadata';
 import { FlatConfigProvider } from './base';
 
 export class AddressProvider extends FlatConfigProvider {
@@ -28,13 +29,15 @@ export class AddressProvider extends FlatConfigProvider {
             { name: '_response_mode', raw: config.response_mode },
         ];
 
-        return attributes.map((attribute) => ({
-            kind: 'attribute',
-            attributePath: buildCtrlPath(element.fullElementPath, this.configName, attribute.name),
-            label: attribute.name,
-            value: formatSimple(attribute.raw, 'sqlite'),
-            editable: false,
-            docsUrl,
-        }));
+        return attributes.map((attribute) =>
+            withConfigAttributeMetadata(this.configName, {
+                kind: 'attribute',
+                attributePath: buildCtrlPath(element.fullElementPath, this.configName, attribute.name),
+                label: attribute.name,
+                value: formatSimple(attribute.raw, 'sqlite'),
+                editable: false,
+                docsUrl,
+            }),
+        );
     }
 }

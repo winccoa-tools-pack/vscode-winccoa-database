@@ -45,6 +45,7 @@ export interface AttributeNodeModel {
     attributePath: string;
     label: string;
     value: ValuePresentation;
+    description?: string;
     ctrlType?: string;
     editable: boolean;
     docsUrl?: string;

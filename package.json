@@ -73,6 +73,12 @@
                 "category": "WinCC OA Database"
             },
             {
+                "command": "winccoa-database.openConfigValueEditor",
+                "title": "Edit Config Value",
+                "icon": "$(edit)",
+                "category": "WinCC OA Database"
+            },
+            {
                 "command": "winccoa-database.selectProject",
                 "title": "Select WinCC OA Project",
                 "category": "WinCC OA Database"
@@ -186,6 +192,11 @@
                     "group": "z_docs"
                 },
                 {
+                    "command": "winccoa-database.openConfigValueEditor",
+                    "when": "view == winccoa-database.dptView && viewItem == configAttribute",
+                    "group": "1_edit"
+                },
+                {
                     "command": "winccoa-database.copyCtrlPath",
                     "when": "view == winccoa-database.dptView && viewItem == configAttribute",
                     "group": "9_cutcopypaste@1"
@@ -198,7 +209,7 @@
                 {
                     "command": "winccoa-database.openConfigEditor",
                     "when": "view == winccoa-database.dptView && viewItem == configAttribute",
-                    "group": "1_edit"
+                    "group": "1_edit@2"
                 }
             ],
             "commandPalette": [
