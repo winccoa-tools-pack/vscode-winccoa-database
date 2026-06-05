@@ -268,9 +268,9 @@
     "scripts": {
         "vscode:prepublish": "npm run compile",
         "rebuild": "electron-rebuild -v 39.3.0",
-        "rebuild:node": "cd node_modules/better-sqlite3 && node-gyp rebuild --release",
-        "collect:node": "node scripts/collect-prebuilds.js --node",
-        "collect:electron": "node scripts/collect-prebuilds.js --electron",
+        "rebuild:node": "cd node_modules/better-sqlite3 && npm_config_runtime=node npm_config_target=24.15.0 npm_config_disturl=https://nodejs.org/download/release node-gyp rebuild --release",
+		"collect:node": "npm_config_target=24.15.0 node scripts/collect-prebuilds.js --node",
+		"collect:electron": "node scripts/collect-prebuilds.js --electron",
         "prebuilds": "npm run rebuild:node && npm run collect:node && npm run rebuild && npm run collect:electron",
         "compile": "webpack --mode production && npm run copy-fixtures",
         "compile:tests": "tsc -p tsconfig.test.json",

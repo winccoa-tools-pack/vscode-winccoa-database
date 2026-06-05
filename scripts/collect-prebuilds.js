@@ -211,13 +211,28 @@ if (!fs.existsSync(SOURCE)) {
     console.error(`Source not found: ${SOURCE}`);
     process.exit(1);
 }
+const NODE_ABI_MAP = { 18: '108', 20: '115', 22: '127', 23: '131', 24: '137' };
 
 const abi = process.versions.modules;
 
 let targetAbi;
 if (mode === '--node') {
-    targetAbi = abi;
-    console.log(`Collecting Node.js prebuild (ABI ${targetAbi})`);
+    // When cross-compiling via npm_config_target (e.g. target Node 24 from Node 22 host),
+    // process.versions.modules is the host ABI and would label the output incorrectly.
+    const targetVersion = process.env.npm_config_target || abi;
+    if (targetVersion) {
+        const targetMajor = parseInt(String(targetVersion).split('.')[0], 10);
+        const mappedAbi = NODE_ABI_MAP[targetMajor];
+        if (!mappedAbi) {
+            console.error(`Unknown Node major version in npm_config_target: ${targetMajor}`);
+            process.exit(1);
+        }
+        targetAbi = mappedAbi;
+        console.log(`Collecting Node.js prebuild for target ${targetVersion} (ABI ${targetAbi})`);
+    } else {
+        targetAbi = abi;
+        console.log(`Collecting Node.js prebuild (ABI ${targetAbi})`);
+    }
 } else {
     // Read the Electron version from package.json rebuild script
     const pkg = JSON.parse(fs.readFileSync(path.join(ROOT, 'package.json'), 'utf8'));
