@@ -48,15 +48,7 @@ jobs:
   package:
     needs: [versioning]
     if: ${{ !cancelled() && (needs.versioning.result == 'success' || needs.versioning.result == 'skipped') }}
-    runs-on: ${{ matrix.os }}
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - os: ubuntu-latest
-            target: linux-x64
-          - os: windows-latest
-            target: win32-x64
+    runs-on: ubuntu-latest
     outputs:
       version: ${{ steps.meta.outputs.version }}
       tag: ${{ steps.meta.outputs.tag }}
@@ -77,23 +69,11 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Collect prebuilds (Node + Electron)
-        shell: bash
-        run: |
-          TARGET="${{ matrix.target }}"
-          PLAT="${TARGET%%-*}"
-          ARCH="${TARGET##*-}"
-          node scripts/collect-prebuilds.js --platform "$PLAT" --arch "$ARCH" --download-node 20.0.0 22.0.0
-          npx electron-rebuild -v 39.3.0 --arch "$ARCH"
-          node scripts/collect-prebuilds.js --platform "$PLAT" --arch "$ARCH" --electron
-
       - name: Install vsce
         run: npm install -g @vscode/vsce
 
       - name: Set prerelease metadata
         id: meta
-        # Only emit outputs from the linux leg to avoid non-deterministic matrix outputs
-        if: matrix.target == 'linux-x64'
         shell: bash
         run: |
           TAG="${{ needs.versioning.outputs.tag }}"
@@ -106,12 +86,12 @@ jobs:
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
 
       - name: Package extension (VSIX)
-        run: vsce package --target ${{ matrix.target }}
+        run: vsce package
 
       - name: Upload VSIX artifact
         uses: actions/upload-artifact@v4
         with:
-          name: vsix-${{ matrix.target }}
+          name: vsix
           path: "*.vsix"
           retention-days: 14
 
@@ -121,11 +101,10 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Download all VSIX artifacts
+      - name: Download VSIX artifact
         uses: actions/download-artifact@v4
         with:
-          pattern: vsix-*
-          merge-multiple: true
+          name: vsix
           path: dist
 
       - name: Build release body
@@ -141,7 +120,7 @@ jobs:
             fi
             echo "### 🔍 Testing Notes"
             echo "- This is a **pre-release** build; download the attached VSIX and test locally"
-            echo "- Platform-specific packages: **linux-x64**, **win32-x64**"
+            echo "- Universal VSIX (no native dependencies, runs on all platforms)"
             echo "- Source branch: ${{ inputs.target_branch }}"
             echo "- Report issues at: https://github.com/${{ github.repository }}/issues"
             echo "EOF"

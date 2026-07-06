@@ -13,8 +13,7 @@
  * The script is idempotent — running it multiple times is safe (overwrites existing files).
  *
  * Uses the built-in `node:sqlite` module (Node.js >= 22.5.0, no native compilation).
- * In Node.js 22.x pass --experimental-sqlite; Node.js >= 23.4 needs no flag.
- * The package.json test:fixtures script adds the flag automatically.
+ * Node 22.13+ requires no flag; earlier versions (22.5-22.12) require --experimental-sqlite.
  */
 
 'use strict';
@@ -32,8 +31,8 @@ try {
             'Requires Node.js >= 22.5.0. Current version: ' +
             process.version +
             '\n' +
-            'If you are on Node.js 22.x, the package.json script already adds --experimental-sqlite.\n' +
-            'Run: node --experimental-sqlite scripts/create-test-fixtures.js',
+            'For Node.js 22.5-22.12, pass --experimental-sqlite:\n' +
+            '  node --experimental-sqlite scripts/create-test-fixtures.js',
     );
     process.exit(1);
 }

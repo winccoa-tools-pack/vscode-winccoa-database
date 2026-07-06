@@ -1,7 +1,6 @@
 import * as path from 'path';
 import * as fs from 'fs';
-import Database, { type Database as DatabaseType } from 'better-sqlite3';
-import { resolveNativeBinding } from './nativeBinding';
+import { DatabaseSync } from 'node:sqlite';
 import type { DpType } from '../models/dpType';
 import type { DpElement } from '../models/dpElement';
 import type { Datapoint } from '../models/datapoint';
@@ -23,11 +22,20 @@ import type {
 
 const SQLITE_DIR = 'db/wincc_oa/sqlite';
 
+/**
+ * Reads WinCC OA's SQLite cache databases (ident, config, last_value, last_alert).
+ *
+ * Note: rows returned by node:sqlite (`.get()`/`.all()`) are plain objects with a
+ * `null` prototype (`Object.create(null)`), not object literals. They are safe to
+ * `JSON.stringify()`, spread (`{ ...row }`), or `Object.keys()` over, but tests must
+ * not `assert.deepStrictEqual()` them directly against `{}` object literals — spread
+ * them first, since the literal's prototype is `Object.prototype`.
+ */
 export class SqliteClient {
-    private identDb: DatabaseType | null = null;
-    private configDb: DatabaseType | null = null;
-    private lastValueDb: DatabaseType | null = null;
-    private lastAlertDb: DatabaseType | null = null;
+    private identDb: DatabaseSync | null = null;
+    private configDb: DatabaseSync | null = null;
+    private lastValueDb: DatabaseSync | null = null;
+    private lastAlertDb: DatabaseSync | null = null;
     private projectPath: string = '';
 
     constructor() {}
@@ -43,18 +51,12 @@ export class SqliteClient {
         const lastValuePath = path.join(sqliteDir, 'last_value.sqlite');
         const lastAlertPath = path.join(sqliteDir, 'last_alert.sqlite');
 
-        // Open databases in readonly mode — better-sqlite3 handles WAL files automatically
-        const nativeBinding = resolveNativeBinding();
-        const dbOptions: { readonly: true; nativeBinding?: string } = { readonly: true };
-        if (nativeBinding) {
-            dbOptions.nativeBinding = nativeBinding;
-        }
-
-        this.identDb = new Database(identPath, dbOptions);
-        this.configDb = new Database(configPath, dbOptions);
-        this.lastValueDb = new Database(lastValuePath, dbOptions);
+        // Open databases in readonly mode — node:sqlite handles WAL files automatically
+        this.identDb = new DatabaseSync(identPath, { readOnly: true });
+        this.configDb = new DatabaseSync(configPath, { readOnly: true });
+        this.lastValueDb = new DatabaseSync(lastValuePath, { readOnly: true });
         if (fs.existsSync(lastAlertPath)) {
-            this.lastAlertDb = new Database(lastAlertPath, dbOptions);
+            this.lastAlertDb = new DatabaseSync(lastAlertPath, { readOnly: true });
         }
     }
 
@@ -76,20 +78,20 @@ export class SqliteClient {
 
     /** Helper: Execute query and return all rows as objects */
     private queryAll<T>(
-        db: DatabaseType,
+        db: DatabaseSync,
         sql: string,
         params: (string | number | null | bigint)[] = [],
     ): T[] {
-        return db.prepare(sql).all(...params) as T[];
+        return db.prepare(sql).all(...params) as unknown as T[];
     }
 
     /** Helper: Execute query and return first row as object */
     private queryOne<T>(
-        db: DatabaseType,
+        db: DatabaseSync,
         sql: string,
         params: (string | number | null | bigint)[] = [],
     ): T | undefined {
-        return db.prepare(sql).get(...params) as T | undefined;
+        return db.prepare(sql).get(...params) as unknown as T | undefined;
     }
 
     // ──── Datapoint Types ────

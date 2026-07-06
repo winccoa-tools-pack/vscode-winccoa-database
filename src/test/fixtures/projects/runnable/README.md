@@ -7,7 +7,7 @@ A dummy runnable WinCC OA project used for integration tests.
 The `db/wincc_oa/sqlite/` directory containing `ident.sqlite`, `config.sqlite` and
 `last_value.sqlite` is **generated** and not committed to the repository.
 
-Run once after `npm install && npm run rebuild`:
+Run once after `npm install`:
 
 ```bash
 npm run test:fixtures

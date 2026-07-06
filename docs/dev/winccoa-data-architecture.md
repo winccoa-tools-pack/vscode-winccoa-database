@@ -33,7 +33,7 @@ WinCC OA uses two database systems for different purposes:
 
 ## SQLite Databases
 
-Located at `{projectDir}/db/wincc_oa/sqlite/`. Written by WinCC OA's `WCCILdataSQLite` manager.
+Located at `{projectDir}/db/wincc_oa/sqlite/`. Written by WinCC OA's `WCCILdataSQLite` manager. Accessed in read-only mode via Node's built-in `node:sqlite` module (DatabaseSync).
 
 ### 1. ident.sqlite — Structure & Identity
 

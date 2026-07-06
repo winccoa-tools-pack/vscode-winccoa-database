@@ -2,6 +2,7 @@ import * as vscode from 'vscode';
 import * as path from 'path';
 import * as fs from 'fs';
 import { SqliteClient } from './db/sqliteClient';
+import { checkSqliteCapability } from './db/sqliteCapability';
 import { DptTreeProvider } from './providers/dptTreeProvider';
 import { DatabaseTreeItem } from './providers/dptTreeProvider';
 import { ConfigEditorPanel } from './providers/configEditorProvider';
@@ -544,6 +545,22 @@ async function connectToProject(projectPath: string, version?: string): Promise<
         return;
     }
 
+    const capability = checkSqliteCapability();
+    if (!capability.ok) {
+        log.error(capability.message);
+        vscode.window.showErrorMessage(capability.message, 'Open README').then((selection) => {
+            if (selection === 'Open README') {
+                vscode.env.openExternal(
+                    vscode.Uri.parse(
+                        'https://github.com/winccoa-tools-pack/vscode-winccoa-database#requirements',
+                    ),
+                );
+            }
+        });
+        disconnectProject('Node.js runtime does not provide node:sqlite.');
+        return;
+    }
+
     try {
         sqliteClient.open(projectPath);
         log.info(`SQLite databases opened successfully, isOpen=${sqliteClient.isOpen}`);
@@ -631,34 +648,7 @@ async function connectToProject(projectPath: string, version?: string): Promise<
         const errorMsg = String(err);
         log.error(`Failed to open SQLite databases: ${errorMsg}`);
 
-        // Check for platform mismatch error (native module compiled for wrong platform)
-        if (
-            errorMsg.includes('invalid ELF header') ||
-            errorMsg.includes('not a valid Win32 application')
-        ) {
-            const extensionId = 'winccoa-tools-pack.vscode-winccoa-database';
-            const platformMsg =
-                `Native module platform mismatch detected. The better-sqlite3 module needs to be rebuilt for ${process.platform}.\n\n` +
-                `Please rebuild the extension:\n` +
-                `1. Open a terminal on your ${process.platform} machine\n` +
-                `2. Find the extension directory (usually ~/.vscode/extensions/${extensionId}-* or ~/.vscode-server/extensions/${extensionId}-*)\n` +
-                `3. Run: npm install && npm run rebuild\n` +
-                `4. Reload VS Code window\n\n` +
-                `See the README for detailed instructions.`;
-
-            vscode.window.showErrorMessage(platformMsg, 'Open README').then((selection) => {
-                if (selection === 'Open README') {
-                    vscode.env.openExternal(
-                        vscode.Uri.parse(
-                            'https://github.com/winccoa-tools-pack/vscode-winccoa-database#from-vsix',
-                        ),
-                    );
-                }
-            });
-            log.error(platformMsg);
-        } else {
-            vscode.window.showErrorMessage(`Failed to open SQLite databases: ${errorMsg}`);
-        }
+        vscode.window.showErrorMessage(`Failed to open SQLite databases: ${errorMsg}`);
 
         disconnectProject(
             `Failed to open SQLite databases for project "${path.basename(projectPath)}".`,

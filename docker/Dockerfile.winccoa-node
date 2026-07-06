@@ -1,6 +1,6 @@
 FROM mpokornyetm/winccoa:v3.19.9-full
 
-ARG NODE_MAJOR=20
+ARG NODE_MAJOR=22
 ARG REPO_NAME=template-vscode-extension
 ARG WINCCOA_VERSION=3.19.9
 

@@ -25,13 +25,6 @@
             "group": "build"
         },
         {
-            "label": "npm: rebuild",
-            "type": "npm",
-            "script": "rebuild",
-            "problemMatcher": [],
-            "group": "build"
-        },
-        {
             "label": "npm: test",
             "type": "npm",
             "script": "test",

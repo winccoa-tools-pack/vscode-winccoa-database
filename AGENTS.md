@@ -49,7 +49,7 @@ src/
   api/
     mcpClient.ts        # HTTP MCP client (all write operations go here)
   db/
-    sqliteClient.ts     # better-sqlite3 wrapper (all read operations go here)
+    sqliteClient.ts     # node:sqlite (DatabaseSync) wrapper (all read operations go here)
   models/
     types.ts            # OaElementType enum + getTypeName()
     dpType.ts           # DpType interface
@@ -83,7 +83,11 @@ npm test                # Full test suite (requires VS Code environment)
 
 **Press F5** in VS Code to launch the Extension Development Host.
 
-> Note: `better-sqlite3` is a native Node.js addon. After `npm install` on a new platform, run `npm run rebuild` (electron-rebuild) to recompile it for the correct Electron version. Do **not** change or replace the `better-sqlite3` dependency.
+> Note: Reads use Node's built-in `node:sqlite` (`DatabaseSync`, available unflagged since Node 22.13; VS Code 1.118+ bundles Node 22.20) — no native module, no rebuild step. Do **not** reintroduce a native or npm SQLite driver (better-sqlite3, sqlite3, sql.js…): the migration away from native modules was deliberate, to eliminate Electron-ABI rebuild breakage on VS Code updates.
+>
+> Node prints a one-time `ExperimentalWarning: SQLite is an experimental feature` to stderr — expected, do not "fix" it with flags.
+>
+> For tests: rows returned by node:sqlite are null-prototype objects; spread them (`{...row}`) before deepStrictEqual against object literals.
 
 ## Branching model (GitFlow)
 

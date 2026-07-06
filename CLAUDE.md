@@ -36,7 +36,7 @@ Run `npm run lint` and `npm run test:unit` after every code change. Do **not** r
 - **Writes**: only through `McpClient` in `src/api/mcpClient.ts`
 - All write commands must check `mcpClient.isConfigured` before calling MCP
 - Never write SQL queries outside `SqliteClient`
-- Native module (`better-sqlite3`): do not replace or swap it; it must be rebuilt with `npm run rebuild` after `npm install` on a new platform
+- SQLite engine: Node's built-in `node:sqlite` (`DatabaseSync`). Do NOT reintroduce a native or npm SQLite dependency (better-sqlite3, sqlite3, sql.js) — that would bring back the Electron-ABI rebuild problem this migration solved
 - Keep files under 500 lines; use typed interfaces for all public APIs
 
 ## MCP server (companion repo)

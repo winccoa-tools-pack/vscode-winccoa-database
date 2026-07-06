@@ -51,15 +51,15 @@ Effortlessly copy datapoint names for use in scripts, documentation, or AI assis
 ```text
 VS Code Extension
   |
-  |-- better-sqlite3 (read) ----> ident.sqlite    (DPTs, elements, DPs)
-  |                                config.sqlite   (address, alert, archive, ...)
-  |                                last_value.sqlite (current values)
+  |-- node:sqlite (read) ------> ident.sqlite    (DPTs, elements, DPs)
+  |                               config.sqlite   (address, alert, archive, ...)
+  |                               last_value.sqlite (current values)
   |
   |-- MCP HTTP Client (write) --> MCP HTTP Server --> WinCC OA Event Manager
                                   (localhost:3001)
 ```
 
-- **Reading**: All data is read from SQLite databases at `{projectDir}/db/wincc_oa/sqlite/` using better-sqlite3 (native Node.js module, prebuilt for Electron and Node.js runtimes)
+- **Reading**: All data is read from SQLite databases at `{projectDir}/db/wincc_oa/sqlite/` using Node's built-in node:sqlite module (DatabaseSync) — no native modules, no rebuild step
 - **Writing**: Values are set through the WinCC OA MCP HTTP server, which routes them through the event manager
 
 > **Note**: Direct SQLite writes do not propagate to the WinCC OA runtime. Use the MCP server for value changes.
@@ -87,7 +87,7 @@ VS Code Extension
 code --install-extension vscode-winccoa-database-X.Y.Z.vsix
 ```
 
-The extension works cross-platform on Windows, Linux, and macOS. Native modules are prebuilt for Electron (local VS Code) and Node.js (Remote SSH/Containers).
+The extension works cross-platform on Windows, Linux, and macOS. Single universal VSIX, no native modules, no per-platform builds.
 
 ## Development
 
