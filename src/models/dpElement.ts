@@ -9,5 +9,6 @@ export interface DpElement {
     source_dpt_id: number;
     source_el_id: number;
     canonical_name: string;
-    modification_time: number;
+    /** 64-bit epoch value, cast to TEXT in SQL to avoid JS number overflow */
+    modification_time: string;
 }

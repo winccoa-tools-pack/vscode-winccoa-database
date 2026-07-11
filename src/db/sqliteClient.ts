@@ -99,14 +99,14 @@ export class SqliteClient {
     getAllDpTypes(): DpType[] {
         return this.queryAll<DpType>(
             this.identDb!,
-            'SELECT dpt_id, canonical_name, next_free_el_id, modification_time FROM datapoint_type ORDER BY canonical_name',
+            'SELECT dpt_id, canonical_name, next_free_el_id, CAST(modification_time AS TEXT) as modification_time FROM datapoint_type ORDER BY canonical_name',
         );
     }
 
     getDpTypeById(dptId: number): DpType | undefined {
         return this.queryOne<DpType>(
             this.identDb!,
-            'SELECT dpt_id, canonical_name, next_free_el_id, modification_time FROM datapoint_type WHERE dpt_id = ?',
+            'SELECT dpt_id, canonical_name, next_free_el_id, CAST(modification_time AS TEXT) as modification_time FROM datapoint_type WHERE dpt_id = ?',
             [dptId],
         );
     }
@@ -116,7 +116,7 @@ export class SqliteClient {
     getElementsByDptId(dptId: number): DpElement[] {
         return this.queryAll<DpElement>(
             this.identDb!,
-            'SELECT el_id, dpt_id, position_in_type, parent_el_id, datatype, referenced_type, source_dpt_id, source_el_id, canonical_name, modification_time FROM datapoint_element WHERE dpt_id = ? ORDER BY position_in_type',
+            'SELECT el_id, dpt_id, position_in_type, parent_el_id, datatype, referenced_type, source_dpt_id, source_el_id, canonical_name, CAST(modification_time AS TEXT) as modification_time FROM datapoint_element WHERE dpt_id = ? ORDER BY position_in_type',
             [dptId],
         );
     }
@@ -124,7 +124,7 @@ export class SqliteClient {
     getElementByDptAndElId(dptId: number, elId: number): DpElement | undefined {
         return this.queryOne<DpElement>(
             this.identDb!,
-            'SELECT el_id, dpt_id, position_in_type, parent_el_id, datatype, referenced_type, source_dpt_id, source_el_id, canonical_name, modification_time FROM datapoint_element WHERE dpt_id = ? AND el_id = ?',
+            'SELECT el_id, dpt_id, position_in_type, parent_el_id, datatype, referenced_type, source_dpt_id, source_el_id, canonical_name, CAST(modification_time AS TEXT) as modification_time FROM datapoint_element WHERE dpt_id = ? AND el_id = ?',
             [dptId, elId],
         );
     }
@@ -173,7 +173,7 @@ export class SqliteClient {
     getAllDatapoints(): Datapoint[] {
         return this.queryAll<Datapoint>(
             this.identDb!,
-            'SELECT dp_id, dpt_id, canonical_name, modification_time FROM datapoint ORDER BY canonical_name',
+            'SELECT dp_id, dpt_id, canonical_name, CAST(modification_time AS TEXT) as modification_time FROM datapoint ORDER BY canonical_name',
         );
     }
 
@@ -189,7 +189,7 @@ export class SqliteClient {
     getDatapointsByDptId(dptId: number): Datapoint[] {
         return this.queryAll<Datapoint>(
             this.identDb!,
-            'SELECT dp_id, dpt_id, canonical_name, modification_time FROM datapoint WHERE dpt_id = ? ORDER BY canonical_name',
+            'SELECT dp_id, dpt_id, canonical_name, CAST(modification_time AS TEXT) as modification_time FROM datapoint WHERE dpt_id = ? ORDER BY canonical_name',
             [dptId],
         );
     }
@@ -217,7 +217,9 @@ export class SqliteClient {
     getAddressConfig(dpId: number, elId: number): AddressConfig | undefined {
         return this.queryOne<AddressConfig>(
             this.configDb!,
-            'SELECT * FROM address WHERE dp_id = ? AND el_id = ?',
+            `SELECT dp_id, el_id, reference, subindex, offset, response_mode, datatype,
+        drv_ident, poll_group, connection, CAST(modification_time AS TEXT) as modification_time
+      FROM address WHERE dp_id = ? AND el_id = ?`,
             [dpId, elId],
         );
     }
@@ -225,7 +227,10 @@ export class SqliteClient {
     getAlertHdlConfig(dpId: number, elId: number): AlertHdlConfig | undefined {
         return this.queryOne<AlertHdlConfig>(
             this.configDb!,
-            'SELECT * FROM alert_hdl WHERE dp_id = ? AND el_id = ?',
+            `SELECT dp_id, el_id, config_type, variable_type, active, orig_hdl, impulse,
+        ok_range, discrete_states, multi_instance, min_prio, panel,
+        CAST(modification_time AS TEXT) as modification_time
+      FROM alert_hdl WHERE dp_id = ? AND el_id = ?`,
             [dpId, elId],
         );
     }
@@ -241,7 +246,8 @@ export class SqliteClient {
     getArchiveConfig(dpId: number, elId: number): ArchiveConfig | undefined {
         return this.queryOne<ArchiveConfig>(
             this.configDb!,
-            'SELECT * FROM archive WHERE dp_id = ? AND el_id = ?',
+            `SELECT dp_id, el_id, archive, CAST(modification_time AS TEXT) as modification_time
+      FROM archive WHERE dp_id = ? AND el_id = ?`,
             [dpId, elId],
         );
     }
@@ -257,7 +263,9 @@ export class SqliteClient {
     getPvRangeConfig(dpId: number, elId: number): PvRangeConfig | undefined {
         return this.queryOne<PvRangeConfig>(
             this.configDb!,
-            'SELECT * FROM pv_range WHERE dp_id = ? AND el_id = ?',
+            `SELECT dp_id, el_id, config_type, variable_type, ignor_inv, neg, min, max,
+        incl_min, incl_max, match, CAST(modification_time AS TEXT) as modification_time
+      FROM pv_range WHERE dp_id = ? AND el_id = ?`,
             [dpId, elId],
         );
     }
@@ -265,7 +273,9 @@ export class SqliteClient {
     getSmoothConfig(dpId: number, elId: number): SmoothConfig | undefined {
         return this.queryOne<SmoothConfig>(
             this.configDb!,
-            'SELECT * FROM smooth WHERE dp_id = ? AND el_id = ?',
+            `SELECT dp_id, el_id, type, std_type, std_time, std_tol,
+        CAST(modification_time AS TEXT) as modification_time
+      FROM smooth WHERE dp_id = ? AND el_id = ?`,
             [dpId, elId],
         );
     }
@@ -273,7 +283,8 @@ export class SqliteClient {
     getDistribConfig(dpId: number, elId: number): DistribConfig | undefined {
         return this.queryOne<DistribConfig>(
             this.configDb!,
-            'SELECT * FROM distrib WHERE dp_id = ? AND el_id = ?',
+            `SELECT dp_id, el_id, driver_number, CAST(modification_time AS TEXT) as modification_time
+      FROM distrib WHERE dp_id = ? AND el_id = ?`,
             [dpId, elId],
         );
     }

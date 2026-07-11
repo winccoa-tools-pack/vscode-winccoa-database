@@ -10,7 +10,7 @@ export interface AddressConfig {
     drv_ident: string;
     poll_group: string;
     connection: string;
-    modification_time: number;
+    modification_time: string;
 }
 
 /** Alert handling config from config.sqlite alert_hdl table */
@@ -27,7 +27,7 @@ export interface AlertHdlConfig {
     multi_instance: number;
     min_prio: number;
     panel: string;
-    modification_time: number;
+    modification_time: string;
 }
 
 /** Alert handling detail from config.sqlite alert_hdl_detail table */
@@ -56,7 +56,7 @@ export interface ArchiveConfig {
     dp_id: number;
     el_id: number;
     archive: number;
-    modification_time: number;
+    modification_time: string;
 }
 
 /** Archive detail from config.sqlite archive_detail table */
@@ -88,7 +88,7 @@ export interface PvRangeConfig {
     incl_min: number;
     incl_max: number;
     match: string | null;
-    modification_time: number;
+    modification_time: string;
 }
 
 /** Smooth config from config.sqlite smooth table */
@@ -99,7 +99,7 @@ export interface SmoothConfig {
     std_type: number;
     std_time: number | null;
     std_tol: number | null;
-    modification_time: number;
+    modification_time: string;
 }
 
 /** Distribution config from config.sqlite distrib table */
@@ -107,7 +107,7 @@ export interface DistribConfig {
     dp_id: number;
     el_id: number;
     driver_number: number;
-    modification_time: number;
+    modification_time: string;
 }
 
 /** Last value from last_value.sqlite */
