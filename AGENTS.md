@@ -16,7 +16,7 @@ WinCC OA is a SCADA system by Siemens/ETM. Its database consists of:
 | **DP** (Datapoint)          | An instance of a DPT. Like an object.                                                                                                                                                                                                                    |
 | **DPE** (Datapoint Element) | A field inside a DP. Can be scalar or a nested Struct.                                                                                                                                                                                                   |
 | **Element type**            | The data type of a DPE (Bool, Int, Float, String, Struct, …). See `src/models/types.ts`.                                                                                                                                                                 |
-| **Config**                  | Metadata on a DPE: address, alert handling, archive, PV range, smoothing, distribution.                                                                                                                                                                  |
+| **Config**                  | Metadata on a DPE: address, alert handling, archive, PV range, smoothing, distribution. See [`docs/dev/winccoa-configs.md`](docs/dev/winccoa-configs.md) for the full field-by-field reference.                                                          |
 | **SQLite cache**            | WinCC OA 3.20+ writes its runtime database to SQLite files under `{projectDir}/db/wincc_oa/sqlite/`. These are **read-only** from outside WinCC OA.                                                                                                      |
 | **MCP HTTP server**         | The companion server (`winccoa-mcp-server`) that runs as a WinCC OA Node.js Manager and provides an HTTP/MCP API to write back to the WinCC OA runtime. **Required for all write operations** (create DP, delete DP, create/edit/delete DPT, set value). |
 
@@ -65,6 +65,10 @@ src/
     unit/               # Unit tests (no VS Code instance required)
     integration/        # Integration tests (require VS Code)
     fixtures/           # Fixture WinCC OA projects for tests
+docs/
+  dev/
+    winccoa-data-architecture.md  # SQLite schema, data flow overview
+    winccoa-configs.md            # DP config types: full field-by-field skill reference
 ```
 
 ## Build & development commands
