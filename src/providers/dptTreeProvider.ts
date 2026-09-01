@@ -32,6 +32,7 @@ export class DatabaseTreeItem extends vscode.TreeItem {
             docsUrl?: string;
             description?: string;
             tooltip?: string;
+            editable?: boolean;
         },
     ) {
         super(label, collapsibleState);
@@ -87,6 +88,13 @@ export class DatabaseTreeItem extends vscode.TreeItem {
                 this.iconPath = new vscode.ThemeIcon('symbol-property');
                 this.description = options?.description;
                 this.tooltip = options?.tooltip;
+                if (options?.editable) {
+                    this.command = {
+                        command: 'winccoa-database.openConfigValueEditor',
+                        title: 'Open Config Value Editor',
+                        arguments: [this],
+                    };
+                }
                 break;
         }
     }
@@ -410,13 +418,16 @@ export class DptTreeProvider
         parent: DatabaseTreeItem,
     ): DatabaseTreeItem {
         const tooltipParts = [attr.label];
+        if (attr.description) {
+            tooltipParts.push(attr.description);
+        }
         if (attr.value.tooltip) {
             tooltipParts.push(`Value: ${attr.value.tooltip}`);
         } else {
             tooltipParts.push(`Value: ${attr.value.display}`);
         }
         tooltipParts.push(`Source: ${attr.value.source}`);
-        tooltipParts.push('Read-only');
+        tooltipParts.push(attr.editable ? 'Editable' : 'Read-only');
         if (attr.value.stale) {
             tooltipParts.push('⚠ Value may be stale');
         }
@@ -436,6 +447,7 @@ export class DptTreeProvider
                 docsUrl: attr.docsUrl,
                 description: attr.value.display,
                 tooltip: tooltipParts.join('\n'),
+                editable: attr.editable,
             },
         );
     }

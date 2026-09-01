@@ -1,6 +1,7 @@
 import type { AttributeNodeModel, ElementRef } from '../types';
 import { buildCtrlPath, formatSimple } from '../formatters';
 import { getConfigDocsUrl } from '../docs';
+import { withConfigAttributeMetadata } from '../metadata';
 import { FlatConfigProvider } from './base';
 
 export class DistribProvider extends FlatConfigProvider {
@@ -19,7 +20,7 @@ export class DistribProvider extends FlatConfigProvider {
         const docsUrl = getConfigDocsUrl(this.configName);
 
         return [
-            {
+            withConfigAttributeMetadata(this.configName, {
                 kind: 'attribute',
                 attributePath: buildCtrlPath(
                     element.fullElementPath,
@@ -28,9 +29,9 @@ export class DistribProvider extends FlatConfigProvider {
                 ),
                 label: '_driver_number',
                 value: formatSimple(config.driver_number, 'sqlite'),
-                editable: false,
+                editable: true,
                 docsUrl,
-            },
+            }),
         ];
     }
 }

@@ -408,5 +408,28 @@ suite('DptTreeProvider Unit Tests', () => {
             );
             assert.strictEqual(item.contextValue, 'dpElement');
         });
+
+        test('should open the config value editor for editable config attributes', () => {
+            const item = new DatabaseTreeItem(
+                '_reference',
+                vscode.TreeItemCollapsibleState.None,
+                'configAttribute',
+                1,
+                100,
+                5,
+                0,
+                undefined,
+                {
+                    configName: '_address',
+                    ctrlPath: 'System1:TestDP.Value:_address.._reference',
+                    description: 'OPCUA:ns=2;i=1001',
+                    tooltip: 'Editable config value',
+                    editable: true,
+                },
+            );
+
+            assert.strictEqual(item.contextValue, 'configAttribute');
+            assert.strictEqual(item.command?.command, 'winccoa-database.openConfigValueEditor');
+        });
     });
 });

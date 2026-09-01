@@ -73,10 +73,12 @@ const archiveConfig = {
 };
 
 function assertFlatProviderChildren(
-    children: Array<{ editable: boolean; value: { source: string } }>,
+    children: Array<{ editable: boolean; description?: string; value: { source: string } }>,
 ): void {
     assert.ok(children.length > 0);
-    assert.ok(children.every((child) => child.editable === false));
+    assert.ok(children.every((child) => child.editable === true));
+    assert.ok(children.every((child) => typeof child.description === 'string'));
+    assert.ok(children.every((child) => (child.description?.length ?? 0) > 0));
     assert.ok(children.every((child) => child.value.source === 'sqlite'));
 }
 
@@ -121,7 +123,7 @@ suite('Config provider unit tests', () => {
             assert.strictEqual(node?.isExpandable, true);
         });
 
-        test('getChildren() returns eight non-editable sqlite-backed attributes', () => {
+        test('getChildren() returns eight editable sqlite-backed attributes', () => {
             const mockDb = {
                 getAddressConfig: () => addressConfig,
             } as unknown as SqliteClient;
@@ -168,7 +170,7 @@ suite('Config provider unit tests', () => {
             assert.strictEqual(new PvRangeProvider(missingDb).exists(mockElementRef), false);
         });
 
-        test('getChildren() returns seven non-editable sqlite-backed attributes', () => {
+        test('getChildren() returns seven editable sqlite-backed attributes', () => {
             const mockDb = {
                 getPvRangeConfig: () => pvRangeConfig,
             } as unknown as SqliteClient;
@@ -210,7 +212,7 @@ suite('Config provider unit tests', () => {
             assert.strictEqual(new SmoothProvider(missingDb).exists(mockElementRef), false);
         });
 
-        test('getChildren() returns three non-editable sqlite-backed attributes', () => {
+        test('getChildren() returns three editable sqlite-backed attributes', () => {
             const mockDb = {
                 getSmoothConfig: () => smoothConfig,
             } as unknown as SqliteClient;
@@ -248,7 +250,7 @@ suite('Config provider unit tests', () => {
             assert.strictEqual(new DistribProvider(missingDb).exists(mockElementRef), false);
         });
 
-        test('getChildren() returns one non-editable sqlite-backed attribute', () => {
+        test('getChildren() returns one editable sqlite-backed attribute', () => {
             const mockDb = {
                 getDistribConfig: () => distribConfig,
             } as unknown as SqliteClient;
@@ -274,7 +276,7 @@ suite('Config provider unit tests', () => {
             assert.strictEqual(new ArchiveProvider(missingDb).exists(mockElementRef), false);
         });
 
-        test('getChildren() returns one non-editable sqlite-backed attribute', () => {
+        test('getChildren() returns one editable sqlite-backed attribute', () => {
             const mockDb = {
                 getArchiveConfig: () => archiveConfig,
             } as unknown as SqliteClient;
