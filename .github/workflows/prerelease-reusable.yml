@@ -83,7 +83,7 @@ jobs:
           TARGET="${{ matrix.target }}"
           PLAT="${TARGET%%-*}"
           ARCH="${TARGET##*-}"
-          node scripts/collect-prebuilds.js --platform "$PLAT" --arch "$ARCH" --download-node 20.0.0 22.0.0
+          node scripts/collect-prebuilds.js --platform "$PLAT" --arch "$ARCH" --download-node 20.0.0 22.0.0 24.0.0
           npx electron-rebuild -v 39.3.0 --arch "$ARCH"
           node scripts/collect-prebuilds.js --platform "$PLAT" --arch "$ARCH" --electron
 

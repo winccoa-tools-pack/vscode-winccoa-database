@@ -7,9 +7,11 @@
  * Usage:
  *   node scripts/collect-prebuilds.js --node                 # collect the current Node.js build
  *   node scripts/collect-prebuilds.js --electron             # collect the current Electron build
- *   node scripts/collect-prebuilds.js --download-node 20.0.0 22.0.0
+ *   node scripts/collect-prebuilds.js --download-node 20.0.0 22.0.0 24.0.0
  *       Download portable prebuilds from GitHub releases for each Node version.
  *       These binaries are built on old glibc (≤ 2.29) and work across distros.
+ *   node scripts/collect-prebuilds.js --download-abi 139 --runtime electron --target 38.0.0
+ *       Download a prebuild for a specific ABI/runtime/version combination.
  */
 
 const { execFileSync } = require('child_process');
@@ -48,10 +50,11 @@ if (
     mode !== '--node' &&
     mode !== '--electron' &&
     mode !== '--download-node' &&
-    mode !== '--download-electron'
+    mode !== '--download-electron' &&
+    mode !== '--download-abi'
 ) {
     console.error(
-        'Usage: node scripts/collect-prebuilds.js [--platform <p>] [--arch <a>] --node|--electron|--download-node|--download-electron <version>',
+        'Usage: node scripts/collect-prebuilds.js [--platform <p>] [--arch <a>] --node|--electron|--download-node|--download-electron|--download-abi <version>',
     );
     process.exit(1);
 }
@@ -79,7 +82,7 @@ if (mode === '--download-node') {
     }
 
     // Node major -> ABI mapping
-    const nodeAbiMap = { 18: '108', 20: '115', 22: '127', 23: '131' };
+    const nodeAbiMap = { 18: '108', 20: '115', 22: '127', 23: '131', 24: '137' };
 
     for (const ver of versions) {
         const major = parseInt(ver.split('.')[0], 10);
@@ -201,6 +204,67 @@ if (mode === '--download-electron') {
             `ABI mismatch! Binary loaded under Node.js ${process.version} — expected Electron ABI ${targetAbi}.`,
         );
         process.exit(1);
+    }
+
+    process.exit(0);
+}
+
+// ── Download prebuild with explicit ABI ───────────────────────────
+if (mode === '--download-abi') {
+    const targetAbi = args[1];
+    const runtimeIdx = args.indexOf('--runtime');
+    const targetIdx = args.indexOf('--target');
+    
+    if (!targetAbi || runtimeIdx === -1 || targetIdx === -1) {
+        console.error(
+            'Usage: node scripts/collect-prebuilds.js --download-abi <abi> --runtime <runtime> --target <version>',
+        );
+        console.error('Example: node scripts/collect-prebuilds.js --download-abi 139 --runtime electron --target 38.0.0');
+        process.exit(1);
+    }
+
+    const runtime = args[runtimeIdx + 1];
+    const target = args[targetIdx + 1];
+
+    console.log(`Downloading prebuild for ${runtime} ${target} (ABI ${targetAbi})...`);
+    const cwd = path.join(ROOT, 'node_modules', 'better-sqlite3');
+    
+    try {
+        execFileSync(
+            process.execPath,
+            [
+                require.resolve('prebuild-install/bin'),
+                '--runtime',
+                runtime,
+                '--target',
+                target,
+                '--arch',
+                targetArch,
+                '--platform',
+                targetPlatform,
+                '--force',
+            ],
+            { cwd, stdio: 'inherit' },
+        );
+    } catch (err) {
+        console.error(`Failed to download prebuild: ${err.message}`);
+        process.exit(1);
+    }
+
+    if (!fs.existsSync(SOURCE)) {
+        console.error(`prebuild-install did not produce ${SOURCE}`);
+        process.exit(1);
+    }
+
+    const dest = path.join(PREBUILDS_DIR, `better_sqlite3_${targetAbi}.node`);
+    fs.copyFileSync(SOURCE, dest);
+    console.log(`Collected: ${dest}`);
+
+    // Clean up nested node_modules
+    const nestedModules = path.join(ROOT, 'node_modules', 'better-sqlite3', 'node_modules');
+    if (fs.existsSync(nestedModules)) {
+        fs.rmSync(nestedModules, { recursive: true, force: true });
+        console.log('Cleaned up nested node_modules from prebuild-install.');
     }
 
     process.exit(0);

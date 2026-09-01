@@ -60,7 +60,7 @@ build:
 # On other platforms they are compiled locally via node-gyp.
 
 # Node versions whose prebuilds we ship (VS Code Server may use either)
-NODE_TARGETS ?= 20.0.0 22.0.0
+NODE_TARGETS ?= 20.0.0 22.0.0 24.0.0
 
 # Electron cross-compilation arch (defaults to host ARCH)
 ELECTRON_ARCH ?= $(ARCH)
